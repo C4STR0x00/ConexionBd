@@ -1,0 +1,43 @@
+package RegistroFrutas;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+/**
+ *
+ * @author Pcarmagedon
+ */
+public class ConexionBd {
+
+    private static final String HOST = " sql10.freesqldatabase.com";
+    private static final String DATABASE = "sql10822020";
+    private static final String USER = "sql10822020";
+    private static final String PASSWORD = "kHbsKNaeL6";
+    private static final String PORT = "3306";
+
+    private static final String URL = "jdbc:mysql://" + HOST + ":" + PORT + "/" + DATABASE +
+            "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
+
+    public static Connection conectar() {
+        Connection con = null;
+
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+
+            con = DriverManager.getConnection(URL, USER, PASSWORD);
+
+            System.out.println(" CONEXIÓN EXITOSA");
+
+        } catch (ClassNotFoundException e) {
+            System.out.println(" Driver no encontrado");
+            e.printStackTrace();
+
+        } catch (SQLException e) {
+            System.out.println(" Error en la conexión");
+            System.out.println("Código: " + e.getErrorCode());
+            System.out.println("Mensaje: " + e.getMessage());
+        }
+
+        return con;
+    }
+}
