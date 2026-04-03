@@ -5,7 +5,7 @@ import java.sql.SQLException;
 
 /**
  *
- * @author Pcarmagedon
+ * @author NOMBRECOMPLETO
  */
 public class ConexionBd {
 
