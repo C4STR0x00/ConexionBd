@@ -15,3 +15,4 @@ public class ConexionDB {
         return DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
     }
 }
+ 
