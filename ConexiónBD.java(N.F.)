@@ -1,0 +1,23 @@
+/*//nicole nayzeth flores escalera
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
+ import java.sql.Connection;
+import java.sql.DriverManager;
+
+public class ConexionTest {
+    public static void main(String[] args) {
+        String url = "jdbc:mysql://bl3labcatj5bjwtaaaua-mysql.services.clever-cloud.com:3306/bl3labcatj5bjwtaaaua?useSSL=true&requireSSL=true&serverTimezone=UTC";
+        String user = "uudxemrmgnionaxs";
+        String password = "hdgOmOtx5OT0q8Km986k";
+
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            Connection con = DriverManager.getConnection(url, user, password);
+            System.out.println("Conexión exitosa");
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
