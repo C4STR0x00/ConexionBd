@@ -11,20 +11,47 @@ import javax.swing.table.DefaultTableCellRenderer;
  *
  * @author Pcarmagedon
  */
-public class USTASK extends javax.swing.JFrame {
+public class USTORIES extends javax.swing.JFrame {
 DefaultListModel modeloArchivos = new DefaultListModel();
+javax.swing.JList<String> listaArchivos = new javax.swing.JList<>(modeloArchivos);
+java.util.ArrayList<String> rutasArchivos = new java.util.ArrayList<>();
 int filaSeleccionada = -1;
     /**
-     * Creates new form USTASK
+     * Creates new form USTORIES
      */
-    public USTASK() {
+    public USTORIES() {
         initComponents();
         jToggleButton5.setVisible(false);
         jPanel2.setVisible(false);
         jPanel4.setVisible(false);
+        jPanel5.setVisible(false);
         javax.swing.JList listaArchivos = new javax.swing.JList(modeloArchivos);
         jPanel3.setLayout(new java.awt.BorderLayout());
-        jPanel3.add(new javax.swing.JScrollPane(listaArchivos), java.awt.BorderLayout.CENTER);
+jPanel3.add(new javax.swing.JScrollPane(listaArchivos), java.awt.BorderLayout.CENTER);
+
+// Abrir archivo con doble click
+listaArchivos.addMouseListener(new java.awt.event.MouseAdapter() {
+    @Override
+    public void mouseClicked(java.awt.event.MouseEvent evt) {
+        if (evt.getClickCount() == 2) {
+            int indice = listaArchivos.getSelectedIndex();
+            if (indice == -1 || indice >= rutasArchivos.size()) {
+                JOptionPane.showMessageDialog(null, "Selecciona un archivo");
+                return;
+            }
+            try {
+                java.io.File archivo = new java.io.File(rutasArchivos.get(indice));
+                if (archivo.exists()) {
+                    java.awt.Desktop.getDesktop().open(archivo);
+                } else {
+                    JOptionPane.showMessageDialog(null, "El archivo no existe en esa ruta");
+                }
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(null, "No se pudo abrir: " + e.getMessage());
+            }
+        }
+    }
+});
         javax.swing.table.DefaultTableModel modeloTabla = new javax.swing.table.DefaultTableModel();
         modeloTabla.addColumn("TITULO");
         modeloTabla.addColumn("FECHA");
@@ -32,7 +59,7 @@ int filaSeleccionada = -1;
         modeloTabla.addColumn("ARCHIVOS");
         modeloTabla.addColumn("ESTADO");  
         jTable1.setModel(modeloTabla);
-       jTable1.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
+        jTable1.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
         @Override
         public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value,
                 boolean isSelected, boolean hasFocus, int row, int column) {
@@ -60,48 +87,75 @@ int filaSeleccionada = -1;
                 c.setForeground(java.awt.Color.BLACK);
             }
 
-            return c;
+            return c;  
         }
     });
-    //Usr2 task-6 botón GUARDAR CALIFICACIÓN 
-         jToggleButton9.addActionListener(new java.awt.event.ActionListener() {
-     public void actionPerformed(java.awt.event.ActionEvent evt) {
-         accionGuardarCalificacion(evt);
-             }
-         });
-     }
-    
+        // Renderer para jTable2 — colores por estado
+jTable2.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
+    @Override
+    public java.awt.Component getTableCellRendererComponent(
+            javax.swing.JTable table, Object value,
+            boolean isSelected, boolean hasFocus, int row, int column) {
+        java.awt.Component c = super.getTableCellRendererComponent(
+                table, value, isSelected, hasFocus, row, column);
+        try {
+            // Columna 5 = NOTA
+            String nota = table.getValueAt(row, 5).toString();
+            // Columna 3 = ESTADO
+            String estado = table.getValueAt(row, 3).toString();
+
+            if (!nota.equals("Sin calificar")) {
+                // Tiene nota = Calificado → Verde
+                c.setBackground(new java.awt.Color(144, 238, 144));
+                c.setForeground(java.awt.Color.BLACK);
+            } else if (estado.equalsIgnoreCase("Vencida")) {
+                // Sin nota y vencida → Rojo
+                c.setBackground(new java.awt.Color(255, 102, 102));
+                c.setForeground(java.awt.Color.WHITE);
+            } else {
+                // Sin nota y activa → Amarillo (pendiente)
+                c.setBackground(new java.awt.Color(255, 255, 153));
+                c.setForeground(java.awt.Color.BLACK);
+            }
+        } catch (Exception e) {
+            c.setBackground(java.awt.Color.WHITE);
+            c.setForeground(java.awt.Color.BLACK);
+        }
+        return c;
+    }
+});
+    }
+
     private void cargarTabla() {
     try {
         java.sql.Connection con = Conexiobd.Conexion();
-        String sql = "SELECT Titulo, Fecha_entrega, Descripcion FROM Tarea";
+        String sql = "SELECT t.Titulo, t.Fecha_entrega, t.Descripcion, " +
+                     "GROUP_CONCAT(a.ruta_archivo SEPARATOR ', ') AS archivos " +
+                     "FROM Tarea t " +
+                     "LEFT JOIN Archivo_tarea a ON t.id_tarea = a.id_tarea " +
+                     "GROUP BY t.id_tarea, t.Titulo, t.Fecha_entrega, t.Descripcion";
+
         java.sql.Statement st = con.createStatement();
         java.sql.ResultSet rs = st.executeQuery(sql);
 
         javax.swing.table.DefaultTableModel modelo =
             (javax.swing.table.DefaultTableModel) jTable1.getModel();
-
         modelo.setRowCount(0);
 
         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
         java.util.Date hoy = new java.util.Date();
 
         while (rs.next()) {
-            String titulo = rs.getString("Titulo");
-            String fechaTexto = rs.getString("Fecha_entrega");
+            String titulo      = rs.getString("Titulo");
+            String fechaTexto  = rs.getString("Fecha_entrega");
             String descripcion = rs.getString("Descripcion");
+            // Si no tiene archivos muestra "Sin archivos"
+            String archivos    = rs.getString("archivos") != null ? rs.getString("archivos") : "Sin archivos";
 
-            // 👇 CALCULAR ESTADO
             java.util.Date fecha = sdf.parse(fechaTexto);
-            String estado;
+            String estado = fecha.before(hoy) ? "Vencida" : "Activa";
 
-            if (fecha.before(hoy)) {
-                estado = "Vencida";
-            } else {
-                estado = "Activa";
-            }
-
-            modelo.addRow(new Object[]{titulo, fechaTexto, descripcion, "", estado});
+            modelo.addRow(new Object[]{titulo, fechaTexto, descripcion, archivos, estado});
         }
 
         con.close();
@@ -109,106 +163,234 @@ int filaSeleccionada = -1;
     } catch (Exception e) {
         JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
     }
-    //Usr2-task6 Acción del botón GUARDAR CALIFICACIÓN
-     private void accionGuardarCalificacion(java.awt.event.ActionEvent evt) {
-         //Primero ejecuta las validaciones (Task 8)
-         if (!validarFormulario()) {
-             return;
-         }
-         //Obtener fila seleccionada en jTable2
-         int fila = jTable2.getSelectedRow();
-         //Obtener el título de la tarea desde la columna 0 de jTable2
-         String tituloTarea = jTable2.getValueAt(fila, 0).toString();
-         //Obtener nota y comentario del formulario
-         double nota = Double.parseDouble(jTextField2.getText().trim());
-         String comentario = jTextArea3.getText().trim();
-         //Guardar en la base de datos
-         boolean exito = guardarCalificacion(tituloTarea, nota, comentario);
-         if (exito) {
-             JOptionPane.showMessageDialog(this,
-                 "Calificación guardada correctamente.",
-                 "Éxito", JOptionPane.INFORMATION_MESSAGE);
+}
+    private void cargarComboBoxEstudiantes() {
+    try {
+        java.sql.Connection con = Conexiobd.Conexion();
+        String sql = "SELECT id_estudiante, nombre, apellido FROM Estudiante";
+        java.sql.Statement st = con.createStatement();
+        java.sql.ResultSet rs = st.executeQuery(sql);
 
-             // Limpiar campos después de guardar
-             jTextField2.setText("");
-             jTextArea3.setText("");
-             jTable2.clearSelection();
+        jComboBox2.removeAllItems();
+        jComboBox2.addItem("-- Todos los estudiantes --");
 
-         } else {
-             JOptionPane.showMessageDialog(this,
-                 "Error al guardar. Intente nuevamente.",
-                 "Error", JOptionPane.ERROR_MESSAGE);
-         }
-     }
- //Usr2-task8 Validaciones
- private boolean validarFormulario() {
-         //Validar que haya una fila seleccionada en jTable2
-         if (jTable2.getSelectedRow() == -1) {
-             JOptionPane.showMessageDialog(this,
-                 "Debes seleccionar una entrega de la tabla.",
-                 "Sin selección", JOptionPane.WARNING_MESSAGE);
-             return false;
-         }
+        while (rs.next()) {
+            jComboBox2.addItem(rs.getInt("id_estudiante") + " - " +
+                rs.getString("nombre") + " " + rs.getString("apellido"));
+        }
 
-         //Validar que la nota no esté vacía
-         String nota = jTextField2.getText().trim();
-         if (nota.isEmpty()) {
-             JOptionPane.showMessageDialog(this,
-                 "La nota no puede estar vacía.",
-                 "Nota requerida", JOptionPane.WARNING_MESSAGE);
-             jTextField2.requestFocus();
-             return false;
-         }
-         //Validar que la nota sea número entre 0 y 100
-         try {
-             double valorNota = Double.parseDouble(nota);
-             if (valorNota < 0 || valorNota > 100) {
-                 JOptionPane.showMessageDialog(this,
-                     "La nota debe estar entre 0 y 100.",
-                     "Nota inválida", JOptionPane.WARNING_MESSAGE);
-                 jTextField2.requestFocus();
-                 return false;
-             }
-         } catch (NumberFormatException e) {
-             JOptionPane.showMessageDialog(this,
-                 "La nota debe ser un número válido. Ejemplo: 85 o 9.5",
-                 "Formato inválido", JOptionPane.WARNING_MESSAGE);
-             jTextField2.requestFocus();
-             return false;
-         }
-         //Validar que el comentario no esté vacío
-         String comentario = jTextArea3.getText().trim();
-         if (comentario.isEmpty()) {
-             JOptionPane.showMessageDialog(this,
-                 "El comentario no puede estar vacío.",
-                 "Comentario requerido", JOptionPane.WARNING_MESSAGE);
-             jTextArea3.requestFocus();
-             return false;
-         }
+        con.close();
 
-         return true; // Todo okey
-     }
-   //task 6 Guardar calificación en la base de datos
-     private boolean guardarCalificacion(String tituloTarea, double nota, String comentario) {
-         try {
-             java.sql.Connection con = Conexiobd.Conexion();
+    } catch (Exception e) {
+        JOptionPane.showMessageDialog(this, "Error al cargar estudiantes: " + e.getMessage());
+    }
+}
+private void cargarComboBoxTareas() {
+    try {
+        java.sql.Connection con = Conexiobd.Conexion();
+        String sql = "SELECT Titulo FROM Tarea";
+        java.sql.Statement st = con.createStatement();
+        java.sql.ResultSet rs = st.executeQuery(sql);
 
-             String sql = "UPDATE Tarea SET nota = ?, comentario = ?, Estado = 'Calificado' WHERE Titulo = ?";
+        jComboBox1.removeAllItems();
+        jComboBox1.addItem("-- Selecciona una tarea --"); // opción por defecto
 
-             java.sql.PreparedStatement ps = con.prepareStatement(sql);
-             ps.setDouble(1, nota);
-             ps.setString(2, comentario);
-             ps.setString(3, tituloTarea);
+        while (rs.next()) {
+            jComboBox1.addItem(rs.getString("Titulo"));
+        }
 
-             int filasActualizadas = ps.executeUpdate();
-             con.close();
+        con.close();
 
-             return filasActualizadas > 0;
+    } catch (Exception e) {
+        JOptionPane.showMessageDialog(this, "Error al cargar tareas: " + e.getMessage());
+    }
+}
 
-         } catch (Exception e) {
-             JOptionPane.showMessageDialog(this, "Error BD: " + e.getMessage());
-             return false;
-         }
+    //TASK 6 Acción del botón GUARDAR CALIFICACIÓN
+    private void accionGuardarCalificacion(java.awt.event.ActionEvent evt) {
+    if (!validarFormulario()) {
+        return;
+    }
+    int fila = jTable2.getSelectedRow();
+    // col 0=TITULO, col 4=ESTUDIANTE
+    String tituloTarea      = jTable2.getValueAt(fila, 0).toString();
+    String nombreEstudiante = jTable2.getValueAt(fila, 4).toString();
+    double nota      = Double.parseDouble(jTextField2.getText().trim());
+    String comentario = jTextArea3.getText().trim();
+
+    boolean exito = guardarCalificacion(tituloTarea, nombreEstudiante, nota, comentario);
+    if (exito) {
+        JOptionPane.showMessageDialog(this,
+            "Calificación guardada correctamente.",
+            "Éxito", JOptionPane.INFORMATION_MESSAGE);
+        jTextField2.setText("");
+        jTextArea3.setText("");
+        jTable2.clearSelection();
+        cargarTablaCalificaciones();
+    } else {
+        JOptionPane.showMessageDialog(this,
+            "Error al guardar. Intente nuevamente.",
+            "Error", JOptionPane.ERROR_MESSAGE);
+    }
+}
+    
+// TASK 7 — Acción del botón EDITAR CALIFICACIÓN (jToggleButton10)
+private void accionEditarCalificacion(java.awt.event.ActionEvent evt) {
+        int fila = jTable2.getSelectedRow();
+        if (fila == -1) {
+            JOptionPane.showMessageDialog(this,
+                    "Selecciona una fila de la tabla para editar.",
+                    "Sin selección", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        // col 5=NOTA, col 6=COMENTARIO
+        String notaActual = jTable2.getValueAt(fila, 5).toString();
+        String comentarioActual = jTable2.getValueAt(fila, 6).toString();
+
+        jTextField2.setText(notaActual.equals("Sin calificar") ? "" : notaActual);
+        jTextArea3.setText(comentarioActual.equals("-") ? "" : comentarioActual);
+
+        JOptionPane.showMessageDialog(this,
+                "Modifica y presiona GUARDAR CALIFICACIÓN.",
+                "Editar calificación", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+// TASK 9 — Recargar jTable2 después de calificar (entregas/revisados)
+private void cargarTablaCalificaciones() {
+        try {
+            java.sql.Connection con = Conexiobd.Conexion();
+
+            String sql = "SELECT t.Titulo, t.Descripcion, t.Fecha_entrega, t.Estado, "
+                    + "CONCAT(e.nombre, ' ', e.apellido) AS estudiante, "
+                    + "te.nota, te.comentario "
+                    + "FROM Tarea_Estudiante te "
+                    + "JOIN Tarea t ON te.id_tarea = t.id_tarea "
+                    + "JOIN Estudiante e ON te.id_estudiante = e.id_estudiante";
+
+            java.sql.Statement st = con.createStatement();
+            java.sql.ResultSet rs = st.executeQuery(sql);
+
+            javax.swing.table.DefaultTableModel modelo = new javax.swing.table.DefaultTableModel(
+                    new String[]{"TITULO", "DESCRIPCION", "FECHA", "ESTADO", "ESTUDIANTE", "NOTA", "COMENTARIO"}, 0
+            ) {
+                public boolean isCellEditable(int row, int col) {
+                    return false;
+                }
+            };
+
+            while (rs.next()) {
+                String nota = rs.getString("nota") != null ? rs.getString("nota") : "Sin calificar";
+                String comentario = rs.getString("comentario") != null ? rs.getString("comentario") : "-";
+
+                modelo.addRow(new Object[]{
+                    rs.getString("Titulo"),
+                    rs.getString("Descripcion"),
+                    rs.getString("Fecha_entrega"),
+                    rs.getString("Estado"),
+                    rs.getString("estudiante"),
+                    nota,
+                    comentario
+                });
+            }
+
+            jTable2.setModel(modelo);
+            con.close();
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error al cargar tabla: " + e.getMessage());
+        }
+    }
+
+private boolean validarFormulario() {
+        //Validar que haya una fila seleccionada en jTable2
+        if (jTable2.getSelectedRow() == -1) {
+            JOptionPane.showMessageDialog(this,
+                "Debes seleccionar una entrega de la tabla.",
+                "Sin selección", JOptionPane.WARNING_MESSAGE);
+            return false;
+        }
+ 
+        //Validar que la nota no esté vacía
+        String nota = jTextField2.getText().trim();
+        if (nota.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                "La nota no puede estar vacía.",
+                "Nota requerida", JOptionPane.WARNING_MESSAGE);
+            jTextField2.requestFocus();
+            return false;
+        }
+        //Validar que la nota sea número entre 0 y 100
+        try {
+            double valorNota = Double.parseDouble(nota);
+            if (valorNota < 0 || valorNota > 100) {
+                JOptionPane.showMessageDialog(this,
+                    "La nota debe estar entre 0 y 100.",
+                    "Nota inválida", JOptionPane.WARNING_MESSAGE);
+                jTextField2.requestFocus();
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this,
+                "La nota debe ser un número válido. Ejemplo: 85 o 9.5",
+                "Formato inválido", JOptionPane.WARNING_MESSAGE);
+            jTextField2.requestFocus();
+            return false;
+        }
+        //Validar que el comentario no esté vacío
+        String comentario = jTextArea3.getText().trim();
+        if (comentario.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                "El comentario no puede estar vacío.",
+                "Comentario requerido", JOptionPane.WARNING_MESSAGE);
+            jTextArea3.requestFocus();
+            return false;
+        }
+        return true; 
+    }
+    private boolean guardarCalificacion(String tituloTarea, String nombreEstudiante, double nota, String comentario) {
+    try {
+        java.sql.Connection con = Conexiobd.Conexion();
+        System.out.println("Titulo: " + tituloTarea);
+        System.out.println("Estudiante: '" + nombreEstudiante + "'");
+        String sqlTarea = "SELECT id_tarea FROM Tarea WHERE Titulo = ?";
+        java.sql.PreparedStatement psTarea = con.prepareStatement(sqlTarea);
+        psTarea.setString(1, tituloTarea);
+        java.sql.ResultSet rsTarea = psTarea.executeQuery();
+        if (!rsTarea.next()) {
+            JOptionPane.showMessageDialog(this, "No se encontró la tarea: " + tituloTarea);
+            con.close();
+            return false;
+        }
+        int idTarea = rsTarea.getInt("id_tarea");
+        System.out.println("idTarea encontrado: " + idTarea);
+        String sqlEst = "SELECT id_estudiante FROM Estudiante WHERE CONCAT(nombre, ' ', apellido) = ?";
+        java.sql.PreparedStatement psEst = con.prepareStatement(sqlEst);
+        psEst.setString(1, nombreEstudiante);
+        java.sql.ResultSet rsEst = psEst.executeQuery();
+        if (!rsEst.next()) {
+            JOptionPane.showMessageDialog(this, "No se encontró el estudiante: '" + nombreEstudiante + "'");
+            con.close();
+            return false;
+        }
+        int idEstudiante = rsEst.getInt("id_estudiante");
+        System.out.println("idEstudiante encontrado: " + idEstudiante);
+        String sql = "UPDATE Tarea_Estudiante SET nota = ?, comentario = ? " +
+                     "WHERE id_tarea = ? AND id_estudiante = ?";
+        java.sql.PreparedStatement ps = con.prepareStatement(sql);
+        ps.setDouble(1, nota);
+        ps.setString(2, comentario);
+        ps.setInt(3, idTarea);
+        ps.setInt(4, idEstudiante);
+
+        int filas = ps.executeUpdate();
+        System.out.println("Filas actualizadas: " + filas);
+        con.close();
+        return filas > 0;
+
+    } catch (Exception e) {
+        JOptionPane.showMessageDialog(this, "Error BD: " + e.getMessage());
+        return false;
+    }
 }
     /**
      * This method is called from within the constructor to initialize the form.
@@ -222,11 +404,36 @@ int filaSeleccionada = -1;
         jPanel1 = new javax.swing.JPanel();
         jToggleButton1 = new javax.swing.JToggleButton();
         jToggleButton3 = new javax.swing.JToggleButton();
+        jPanel5 = new javax.swing.JPanel();
+        jPanel6 = new javax.swing.JPanel();
+        jLabel6 = new javax.swing.JLabel();
+        jLabel7 = new javax.swing.JLabel();
+        jComboBox1 = new javax.swing.JComboBox<>();
+        jScrollPane3 = new javax.swing.JScrollPane();
+        jTable2 = new javax.swing.JTable();
+        jToggleButton8 = new javax.swing.JToggleButton();
+        jScrollPane4 = new javax.swing.JScrollPane();
+        jTextArea2 = new javax.swing.JTextArea();
+        jLabel8 = new javax.swing.JLabel();
+        jTextField2 = new javax.swing.JTextField();
+        jLabel9 = new javax.swing.JLabel();
+        jLabel10 = new javax.swing.JLabel();
+        jScrollPane5 = new javax.swing.JScrollPane();
+        jTextArea3 = new javax.swing.JTextArea();
+        jToggleButton9 = new javax.swing.JToggleButton();
+        jLabel11 = new javax.swing.JLabel();
+        jComboBox2 = new javax.swing.JComboBox<>();
+        jLabel12 = new javax.swing.JLabel();
+        jToggleButton10 = new javax.swing.JToggleButton();
         jPanel4 = new javax.swing.JPanel();
+        jPanel8 = new javax.swing.JPanel();
+        jLabel13 = new javax.swing.JLabel();
         jScrollPane2 = new javax.swing.JScrollPane();
         jTable1 = new javax.swing.JTable();
         jToggleButton4 = new javax.swing.JToggleButton();
         jPanel2 = new javax.swing.JPanel();
+        jPanel7 = new javax.swing.JPanel();
+        jLabel5 = new javax.swing.JLabel();
         jLabel1 = new javax.swing.JLabel();
         jTextField1 = new javax.swing.JTextField();
         jLabel2 = new javax.swing.JLabel();
@@ -238,8 +445,11 @@ int filaSeleccionada = -1;
         jToggleButton2 = new javax.swing.JToggleButton();
         jToggleButton6 = new javax.swing.JToggleButton();
         jToggleButton5 = new javax.swing.JToggleButton();
+        jToggleButton7 = new javax.swing.JToggleButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+
+        jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
         jToggleButton1.setText("CREAR TAREA");
         jToggleButton1.addActionListener(new java.awt.event.ActionListener() {
@@ -255,7 +465,208 @@ int filaSeleccionada = -1;
             }
         });
 
-        jPanel4.setBackground(new java.awt.Color(204, 204, 255));
+        jPanel6.setBackground(new java.awt.Color(0, 102, 204));
+
+        jLabel6.setFont(new java.awt.Font("Yu Gothic UI Semilight", 1, 12)); // NOI18N
+        jLabel6.setText("REVISIÓN  Y CALIFICACIÓN DE TAREAS");
+
+        javax.swing.GroupLayout jPanel6Layout = new javax.swing.GroupLayout(jPanel6);
+        jPanel6.setLayout(jPanel6Layout);
+        jPanel6Layout.setHorizontalGroup(
+            jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel6Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jLabel6)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+        jPanel6Layout.setVerticalGroup(
+            jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel6Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jLabel6)
+                .addContainerGap(8, Short.MAX_VALUE))
+        );
+
+        jLabel7.setText("Seleccionar Tarea");
+
+        jComboBox1.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        jComboBox1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jComboBox1ActionPerformed(evt);
+            }
+        });
+
+        jTable2.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null}
+            },
+            new String [] {
+                "Title 1", "Title 2", "Title 3", "Title 4"
+            }
+        ));
+        jTable2.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                jTable2MouseClicked(evt);
+            }
+        });
+        jScrollPane3.setViewportView(jTable2);
+
+        jToggleButton8.setText("CARGAR TAREA");
+        jToggleButton8.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jToggleButton8ActionPerformed(evt);
+            }
+        });
+
+        jTextArea2.setColumns(20);
+        jTextArea2.setRows(5);
+        jScrollPane4.setViewportView(jTextArea2);
+
+        jLabel8.setText("Calificar Tarea");
+
+        jTextField2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jTextField2ActionPerformed(evt);
+            }
+        });
+
+        jLabel9.setText("Calificación");
+
+        jLabel10.setText("Comentario");
+
+        jTextArea3.setColumns(20);
+        jTextArea3.setRows(5);
+        jScrollPane5.setViewportView(jTextArea3);
+
+        jToggleButton9.setText("GUARDAR CALIFICACIÓN");
+        jToggleButton9.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jToggleButton9ActionPerformed(evt);
+            }
+        });
+
+        jLabel11.setText("Detalles de Tarea");
+
+        jComboBox2.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        jComboBox2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jComboBox2ActionPerformed(evt);
+            }
+        });
+
+        jLabel12.setText("Seleccionar Estudiante");
+
+        jToggleButton10.setText("EDITAR CALIFICACIÓN");
+        jToggleButton10.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jToggleButton10ActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout jPanel5Layout = new javax.swing.GroupLayout(jPanel5);
+        jPanel5.setLayout(jPanel5Layout);
+        jPanel5Layout.setHorizontalGroup(
+            jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jPanel6, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(jPanel5Layout.createSequentialGroup()
+                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel5Layout.createSequentialGroup()
+                        .addGap(273, 273, 273)
+                        .addComponent(jToggleButton9))
+                    .addGroup(jPanel5Layout.createSequentialGroup()
+                        .addGap(18, 18, 18)
+                        .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addGroup(jPanel5Layout.createSequentialGroup()
+                                .addComponent(jToggleButton8)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(jToggleButton10))
+                            .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 654, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(jPanel5Layout.createSequentialGroup()
+                                .addComponent(jLabel7)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 139, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(jLabel12)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(jComboBox2, javax.swing.GroupLayout.PREFERRED_SIZE, 135, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(jPanel5Layout.createSequentialGroup()
+                                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jLabel8)
+                                    .addGroup(jPanel5Layout.createSequentialGroup()
+                                        .addComponent(jLabel9)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                        .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 86, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                .addGap(44, 44, 44)
+                                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jLabel10)
+                                    .addComponent(jScrollPane5)))
+                            .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 537, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel11))))
+                .addContainerGap(41, Short.MAX_VALUE))
+        );
+        jPanel5Layout.setVerticalGroup(
+            jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel5Layout.createSequentialGroup()
+                .addComponent(jPanel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel7)
+                    .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jComboBox2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel12))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 95, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jToggleButton8)
+                    .addComponent(jToggleButton10))
+                .addGap(2, 2, 2)
+                .addComponent(jLabel11)
+                .addGap(6, 6, 6)
+                .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 74, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel8)
+                    .addComponent(jLabel10))
+                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel5Layout.createSequentialGroup()
+                        .addGap(18, 18, 18)
+                        .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel9)))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel5Layout.createSequentialGroup()
+                        .addGap(2, 2, 2)
+                        .addComponent(jScrollPane5, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 42, Short.MAX_VALUE)
+                .addComponent(jToggleButton9)
+                .addGap(28, 28, 28))
+        );
+
+        jPanel4.setBackground(new java.awt.Color(204, 204, 204));
+
+        jPanel8.setBackground(new java.awt.Color(0, 102, 204));
+
+        jLabel13.setFont(new java.awt.Font("Yu Gothic UI Semibold", 1, 14)); // NOI18N
+        jLabel13.setText("MURO DE TAREAS");
+
+        javax.swing.GroupLayout jPanel8Layout = new javax.swing.GroupLayout(jPanel8);
+        jPanel8.setLayout(jPanel8Layout);
+        jPanel8Layout.setHorizontalGroup(
+            jPanel8Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel8Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jLabel13)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+        jPanel8Layout.setVerticalGroup(
+            jPanel8Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel8Layout.createSequentialGroup()
+                .addComponent(jLabel13)
+                .addGap(0, 6, Short.MAX_VALUE))
+        );
 
         jTable1.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
@@ -282,27 +693,51 @@ int filaSeleccionada = -1;
         jPanel4Layout.setHorizontalGroup(
             jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
-                .addContainerGap(72, Short.MAX_VALUE)
-                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 473, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(58, 58, 58))
-            .addGroup(jPanel4Layout.createSequentialGroup()
-                .addGap(232, 232, 232)
-                .addComponent(jToggleButton4)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap(125, Short.MAX_VALUE)
+                .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
+                        .addComponent(jToggleButton4)
+                        .addGap(284, 284, 284))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
+                        .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 473, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(115, 115, 115))))
+            .addComponent(jPanel8, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         jPanel4Layout.setVerticalGroup(
             jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
-                .addContainerGap(38, Short.MAX_VALUE)
+                .addComponent(jPanel8, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 56, Short.MAX_VALUE)
                 .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 262, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(45, 45, 45)
+                .addGap(27, 27, 27)
                 .addComponent(jToggleButton4)
-                .addGap(61, 61, 61))
+                .addGap(63, 63, 63))
         );
 
-        jPanel2.setBackground(new java.awt.Color(102, 102, 102));
+        jPanel2.setBackground(new java.awt.Color(204, 204, 204));
 
-        jLabel1.setText("TITULO");
+        jPanel7.setBackground(new java.awt.Color(0, 102, 204));
+
+        jLabel5.setFont(new java.awt.Font("Yu Gothic UI Semibold", 1, 14)); // NOI18N
+        jLabel5.setText("CREACION DE TAREAS");
+
+        javax.swing.GroupLayout jPanel7Layout = new javax.swing.GroupLayout(jPanel7);
+        jPanel7.setLayout(jPanel7Layout);
+        jPanel7Layout.setHorizontalGroup(
+            jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel7Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jLabel5)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+        jPanel7Layout.setVerticalGroup(
+            jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel7Layout.createSequentialGroup()
+                .addComponent(jLabel5)
+                .addGap(0, 6, Short.MAX_VALUE))
+        );
+
+        jLabel1.setText("TITULO DE TAREA");
 
         jLabel2.setText("FECHA DE ENTREGA");
 
@@ -349,68 +784,77 @@ int filaSeleccionada = -1;
         jPanel2Layout.setHorizontalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                .addGap(0, 32, Short.MAX_VALUE)
+                .addGap(87, 87, 87)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGap(80, 80, 80)
+                        .addComponent(jToggleButton2)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jToggleButton5))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jToggleButton6))
+                    .addComponent(jScrollPane1))
+                .addGap(65, 65, 65))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                .addGroup(jPanel2Layout.createSequentialGroup()
-                                    .addGap(53, 53, 53)
-                                    .addComponent(jToggleButton2)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                    .addComponent(jToggleButton5))
-                                .addGroup(jPanel2Layout.createSequentialGroup()
-                                    .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                    .addComponent(jToggleButton6)))
-                            .addGap(65, 65, 65))
-                        .addGroup(jPanel2Layout.createSequentialGroup()
-                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 550, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGroup(jPanel2Layout.createSequentialGroup()
-                                    .addGap(242, 242, 242)
-                                    .addComponent(jLabel1))
-                                .addGroup(jPanel2Layout.createSequentialGroup()
-                                    .addGap(206, 206, 206)
-                                    .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                        .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addComponent(jLabel2))))
-                            .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 299, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(147, 147, 147))
+                    .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel2))
+                .addGap(291, 291, 291))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
                         .addComponent(jLabel3)
-                        .addGap(262, 262, 262))))
+                        .addGap(312, 312, 312))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                        .addComponent(jLabel1)
+                        .addGap(298, 298, 298))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 299, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(196, 196, 196))))
+            .addComponent(jPanel7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
-                .addGap(12, 12, 12)
+                .addComponent(jPanel7, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jLabel1)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jLabel2)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 20, Short.MAX_VALUE)
                 .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addComponent(jLabel3)
-                .addGap(8, 8, 8)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 69, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(17, 17, 17)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 69, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(18, 18, 18)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(29, 29, 29))
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 50, Short.MAX_VALUE)
                         .addComponent(jToggleButton6)
-                        .addGap(48, 48, 48)))
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jToggleButton2)
-                    .addComponent(jToggleButton5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addContainerGap(34, Short.MAX_VALUE))
+                        .addGap(52, 52, 52)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jToggleButton2)
+                            .addComponent(jToggleButton5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addGap(51, 51, 51))))
         );
+
+        jToggleButton7.setText("REVISION DE TAREAS");
+        jToggleButton7.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jToggleButton7ActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
@@ -418,20 +862,17 @@ int filaSeleccionada = -1;
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addGap(88, 88, 88)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                        .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addContainerGap(34, Short.MAX_VALUE))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                        .addComponent(jToggleButton1)
-                        .addGap(112, 112, 112)
-                        .addComponent(jToggleButton3)
-                        .addGap(129, 129, 129))))
+                .addComponent(jToggleButton1)
+                .addGap(93, 93, 93)
+                .addComponent(jToggleButton3)
+                .addGap(80, 80, 80)
+                .addComponent(jToggleButton7)
+                .addContainerGap(78, Short.MAX_VALUE))
+            .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                .addGroup(jPanel1Layout.createSequentialGroup()
-                    .addGap(88, 88, 88)
-                    .addComponent(jPanel4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addContainerGap(22, Short.MAX_VALUE)))
+                .addComponent(jPanel4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addComponent(jPanel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -439,15 +880,19 @@ int filaSeleccionada = -1;
                 .addGap(24, 24, 24)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jToggleButton1)
-                    .addComponent(jToggleButton3))
+                    .addComponent(jToggleButton3)
+                    .addComponent(jToggleButton7))
                 .addGap(18, 18, 18)
-                .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(28, Short.MAX_VALUE))
+                .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                 .addGroup(jPanel1Layout.createSequentialGroup()
                     .addGap(67, 67, 67)
-                    .addComponent(jPanel4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addContainerGap(24, Short.MAX_VALUE)))
+                    .addComponent(jPanel4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addContainerGap()))
+            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                    .addGap(0, 65, Short.MAX_VALUE)
+                    .addComponent(jPanel5, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
         );
 
         getContentPane().add(jPanel1, java.awt.BorderLayout.CENTER);
@@ -456,7 +901,7 @@ int filaSeleccionada = -1;
     }// </editor-fold>                        
 
     private void jToggleButton1ActionPerformed(java.awt.event.ActionEvent evt) {                                               
-     
+    jPanel5.setVisible(false);
     jPanel2.setVisible(true);
     jPanel4.setVisible(false);
     }                                              
@@ -467,12 +912,13 @@ int filaSeleccionada = -1;
 
         int opcion = fileChooser.showOpenDialog(this);
 
-        if(opcion == JFileChooser.APPROVE_OPTION){
+        if (opcion == JFileChooser.APPROVE_OPTION) {
             File[] archivos = fileChooser.getSelectedFiles();
 
-            if(modeloArchivos.getSize() + archivos.length <= 5){
-                for(File archivo : archivos){
+            if (modeloArchivos.getSize() + archivos.length <= 5) {
+                for (File archivo : archivos) {
                     modeloArchivos.addElement(archivo.getName());
+                    rutasArchivos.add(archivo.getAbsolutePath()); // guarda la ruta completa
                 }
             } else {
                 JOptionPane.showMessageDialog(this, "Máximo 5 archivos");
@@ -487,7 +933,7 @@ int filaSeleccionada = -1;
     }                                              
 
     private void jToggleButton4ActionPerformed(java.awt.event.ActionEvent evt) {                                               
-    filaSeleccionada = jTable1.getSelectedRow();
+     filaSeleccionada = jTable1.getSelectedRow();
 
     if(filaSeleccionada == -1){
         JOptionPane.showMessageDialog(this, "Selecciona una tarea");
@@ -509,7 +955,7 @@ int filaSeleccionada = -1;
     }                                              
 
     private void jToggleButton6ActionPerformed(java.awt.event.ActionEvent evt) {                                               
-      String titulo = jTextField1.getText();
+    String titulo = jTextField1.getText();
     String descripcion = jTextArea1.getText();
     java.util.Date fecha = jDateChooser1.getDate();
 
@@ -526,7 +972,7 @@ int filaSeleccionada = -1;
 
         String sql = "INSERT INTO Tarea (Titulo, Descripcion, Fecha_entrega, Estado) VALUES (?, ?, ?, ?)";
 
-        java.sql.PreparedStatement ps = con.prepareStatement(sql);
+        java.sql.PreparedStatement ps = con.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS);
 
         ps.setString(1, titulo);
         ps.setString(2, descripcion);
@@ -544,8 +990,30 @@ int filaSeleccionada = -1;
      ps.setString(4, estado);
 
         ps.executeUpdate();
+       
+        java.sql.ResultSet generatedKeys = ps.getGeneratedKeys();
+        if (generatedKeys.next()) {
+            int idTareaNueva = generatedKeys.getInt(1);
 
+            String sqlEstudiantes = "SELECT id_estudiante FROM Estudiante";
+            java.sql.Statement stEst = con.createStatement();
+            java.sql.ResultSet rsEst = stEst.executeQuery(sqlEstudiantes);
+
+            String sqlAsignar = "INSERT INTO Tarea_Estudiante (id_tarea, id_estudiante) VALUES (?, ?)";
+            java.sql.PreparedStatement psAsignar = con.prepareStatement(sqlAsignar);
+
+            while (rsEst.next()) {
+                psAsignar.setInt(1, idTareaNueva);
+                psAsignar.setInt(2, rsEst.getInt("id_estudiante"));
+                psAsignar.executeUpdate();
+            }
+        }
         JOptionPane.showMessageDialog(this, "Se agrego la Tarea");
+        jTextField1.setText("");
+        jTextArea1.setText("");
+        jDateChooser1.setDate(null);
+        modeloArchivos.clear();
+        rutasArchivos.clear();
 
         con.close();
      cargarTabla();
@@ -558,7 +1026,7 @@ int filaSeleccionada = -1;
     }                                              
 
     private void jToggleButton5ActionPerformed(java.awt.event.ActionEvent evt) {                                               
-       String titulo = jTextField1.getText();
+    String titulo = jTextField1.getText();
     String descripcion = jTextArea1.getText();
     java.util.Date fecha = jDateChooser1.getDate();
 
@@ -584,13 +1052,146 @@ int filaSeleccionada = -1;
         ps.executeUpdate();
 
         JOptionPane.showMessageDialog(this, "Tarea actualizada");
-
+        jTextField1.setText("");
+        jTextArea1.setText("");
+        jDateChooser1.setDate(null);
+        modeloArchivos.clear();
+        rutasArchivos.clear();
+        jToggleButton5.setVisible(false);
+        jToggleButton6.setEnabled(true);
         con.close();
 
     } catch(Exception e){
         JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
     }
     }                                              
+
+    private void jToggleButton7ActionPerformed(java.awt.event.ActionEvent evt) {                                               
+    jPanel5.setVisible(true);
+    jPanel4.setVisible(false);
+    jPanel2.setVisible(false);
+    cargarComboBoxTareas(); 
+    cargarComboBoxEstudiantes(); 
+    cargarTablaCalificaciones();
+    }                                              
+
+    private void jToggleButton8ActionPerformed(java.awt.event.ActionEvent evt) {                                               
+        String tareaSeleccionada = jComboBox1.getSelectedItem().toString();
+        String estudianteSeleccionado = jComboBox2.getSelectedItem().toString();
+
+        boolean todasTareas = tareaSeleccionada.equals("-- Selecciona una tarea --");
+        boolean todosEstudiantes = estudianteSeleccionado.equals("-- Todos los estudiantes --");
+
+        // Si no filtró nada, carga todo
+        if (todasTareas && todosEstudiantes) {
+            cargarTablaCalificaciones();
+            return;
+        }
+
+        try {
+            java.sql.Connection con = Conexiobd.Conexion();
+
+            String sql = "SELECT t.Titulo, t.Descripcion, t.Fecha_entrega, t.Estado, "
+                    + "CONCAT(e.nombre, ' ', e.apellido) AS estudiante, "
+                    + "te.nota, te.comentario "
+                    + "FROM Tarea_Estudiante te "
+                    + "JOIN Tarea t ON te.id_tarea = t.id_tarea "
+                    + "JOIN Estudiante e ON te.id_estudiante = e.id_estudiante "
+                    + "WHERE 1=1 ";
+
+            // Agregar filtros dinámicamente
+            if (!todasTareas) {
+                sql += "AND t.Titulo = ? ";
+            }
+            if (!todosEstudiantes) {
+                // Extraemos el id del string "1 - Juan Perez"
+                int idEstudiante = Integer.parseInt(estudianteSeleccionado.split(" - ")[0].trim());
+                sql += "AND e.id_estudiante = " + idEstudiante + " ";
+            }
+
+            java.sql.PreparedStatement ps = con.prepareStatement(sql);
+
+            if (!todasTareas) {
+                ps.setString(1, tareaSeleccionada);
+            }
+
+            java.sql.ResultSet rs = ps.executeQuery();
+
+            javax.swing.table.DefaultTableModel modelo = new javax.swing.table.DefaultTableModel(
+                    new String[]{"TITULO", "DESCRIPCION", "FECHA", "ESTADO", "ESTUDIANTE", "NOTA", "COMENTARIO"}, 0
+            ) {
+                public boolean isCellEditable(int row, int col) {
+                    return false;
+                }
+            };
+
+            while (rs.next()) {
+                String nota = rs.getString("nota") != null ? rs.getString("nota") : "Sin calificar";
+                String comentario = rs.getString("comentario") != null ? rs.getString("comentario") : "-";
+
+                modelo.addRow(new Object[]{
+                    rs.getString("Titulo"),
+                    rs.getString("Descripcion"),
+                    rs.getString("Fecha_entrega"),
+                    rs.getString("Estado"),
+                    rs.getString("estudiante"),
+                    nota,
+                    comentario
+                });
+            }
+
+            jTable2.setModel(modelo);
+            con.close();
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error al filtrar: " + e.getMessage());
+        }
+    }                                              
+
+    private void jTextField2ActionPerformed(java.awt.event.ActionEvent evt) {                                            
+        // TODO add your handling code here:
+    }                                           
+
+    private void jToggleButton9ActionPerformed(java.awt.event.ActionEvent evt) {                                               
+        // TODO add your handling code here:
+    }                                              
+
+    private void jComboBox2ActionPerformed(java.awt.event.ActionEvent evt) {                                           
+        // TODO add your handling code here:
+    }                                          
+
+    private void jToggleButton10ActionPerformed(java.awt.event.ActionEvent evt) {                                                
+        
+        accionEditarCalificacion(evt);
+    }                                               
+
+    private void jComboBox1ActionPerformed(java.awt.event.ActionEvent evt) {                                           
+        // TODO add your handling code here:
+    }                                          
+
+    private void jTable2MouseClicked(java.awt.event.MouseEvent evt) {                                     
+        int fila = jTable2.getSelectedRow();
+        if (fila != -1) {
+            String titulo = jTable2.getValueAt(fila, 0).toString();
+            String descripcion = jTable2.getValueAt(fila, 1).toString();
+            String fecha = jTable2.getValueAt(fila, 2).toString();
+            String estado = jTable2.getValueAt(fila, 3).toString();
+            String estudiante = jTable2.getValueAt(fila, 4).toString();
+            String nota = jTable2.getValueAt(fila, 5).toString();
+            String comentario = jTable2.getValueAt(fila, 6).toString();
+
+            jTextArea2.setText(
+                    "Titulo: " + titulo + "\n\n"
+                    + "Descripcion: " + descripcion + "\n\n"
+                    + "Fecha: " + fecha + "\n\n"
+                    + "Estado: " + estado + "\n\n"
+                    + "Estudiante: " + estudiante + "\n\n"
+                    + "Nota: " + nota + "\n\n"
+                    + "Comentario: " + comentario
+            );
+            filaSeleccionada = fila;
+        }
+    }                                    
 
     /**
      * @param args the command line arguments
@@ -609,43 +1210,72 @@ int filaSeleccionada = -1;
                 }
             }
         } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(USTASK.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(USTORIES.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(USTASK.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(USTORIES.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(USTASK.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(USTORIES.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(USTASK.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(USTORIES.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
+        //</editor-fold>
+        //</editor-fold>
+        //</editor-fold>
         //</editor-fold>
 
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                new USTASK().setVisible(true);
+                new USTORIES().setVisible(true);
             }
         });
     }
 
     // Variables declaration - do not modify                     
+    private javax.swing.JComboBox<String> jComboBox1;
+    private javax.swing.JComboBox<String> jComboBox2;
     private com.toedter.calendar.JDateChooser jDateChooser1;
     private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel10;
+    private javax.swing.JLabel jLabel11;
+    private javax.swing.JLabel jLabel12;
+    private javax.swing.JLabel jLabel13;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
+    private javax.swing.JLabel jLabel5;
+    private javax.swing.JLabel jLabel6;
+    private javax.swing.JLabel jLabel7;
+    private javax.swing.JLabel jLabel8;
+    private javax.swing.JLabel jLabel9;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
     private javax.swing.JPanel jPanel4;
+    private javax.swing.JPanel jPanel5;
+    private javax.swing.JPanel jPanel6;
+    private javax.swing.JPanel jPanel7;
+    private javax.swing.JPanel jPanel8;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
+    private javax.swing.JScrollPane jScrollPane3;
+    private javax.swing.JScrollPane jScrollPane4;
+    private javax.swing.JScrollPane jScrollPane5;
     private javax.swing.JTable jTable1;
+    private javax.swing.JTable jTable2;
     private javax.swing.JTextArea jTextArea1;
+    private javax.swing.JTextArea jTextArea2;
+    private javax.swing.JTextArea jTextArea3;
     private javax.swing.JTextField jTextField1;
+    private javax.swing.JTextField jTextField2;
     private javax.swing.JToggleButton jToggleButton1;
+    private javax.swing.JToggleButton jToggleButton10;
     private javax.swing.JToggleButton jToggleButton2;
     private javax.swing.JToggleButton jToggleButton3;
     private javax.swing.JToggleButton jToggleButton4;
     private javax.swing.JToggleButton jToggleButton5;
     private javax.swing.JToggleButton jToggleButton6;
+    private javax.swing.JToggleButton jToggleButton7;
+    private javax.swing.JToggleButton jToggleButton8;
+    private javax.swing.JToggleButton jToggleButton9;
     // End of variables declaration                   
 }
