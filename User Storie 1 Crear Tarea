@@ -63,8 +63,14 @@ int filaSeleccionada = -1;
             return c;
         }
     });
-    }
-
+    //Usr2 task-6 botón GUARDAR CALIFICACIÓN 
+         jToggleButton9.addActionListener(new java.awt.event.ActionListener() {
+     public void actionPerformed(java.awt.event.ActionEvent evt) {
+         accionGuardarCalificacion(evt);
+             }
+         });
+     }
+    
     private void cargarTabla() {
     try {
         java.sql.Connection con = Conexiobd.Conexion();
@@ -103,6 +109,106 @@ int filaSeleccionada = -1;
     } catch (Exception e) {
         JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
     }
+    //Usr2-task6 Acción del botón GUARDAR CALIFICACIÓN
+     private void accionGuardarCalificacion(java.awt.event.ActionEvent evt) {
+         //Primero ejecuta las validaciones (Task 8)
+         if (!validarFormulario()) {
+             return;
+         }
+         //Obtener fila seleccionada en jTable2
+         int fila = jTable2.getSelectedRow();
+         //Obtener el título de la tarea desde la columna 0 de jTable2
+         String tituloTarea = jTable2.getValueAt(fila, 0).toString();
+         //Obtener nota y comentario del formulario
+         double nota = Double.parseDouble(jTextField2.getText().trim());
+         String comentario = jTextArea3.getText().trim();
+         //Guardar en la base de datos
+         boolean exito = guardarCalificacion(tituloTarea, nota, comentario);
+         if (exito) {
+             JOptionPane.showMessageDialog(this,
+                 "Calificación guardada correctamente.",
+                 "Éxito", JOptionPane.INFORMATION_MESSAGE);
+
+             // Limpiar campos después de guardar
+             jTextField2.setText("");
+             jTextArea3.setText("");
+             jTable2.clearSelection();
+
+         } else {
+             JOptionPane.showMessageDialog(this,
+                 "Error al guardar. Intente nuevamente.",
+                 "Error", JOptionPane.ERROR_MESSAGE);
+         }
+     }
+ //Usr2-task8 Validaciones
+ private boolean validarFormulario() {
+         //Validar que haya una fila seleccionada en jTable2
+         if (jTable2.getSelectedRow() == -1) {
+             JOptionPane.showMessageDialog(this,
+                 "Debes seleccionar una entrega de la tabla.",
+                 "Sin selección", JOptionPane.WARNING_MESSAGE);
+             return false;
+         }
+
+         //Validar que la nota no esté vacía
+         String nota = jTextField2.getText().trim();
+         if (nota.isEmpty()) {
+             JOptionPane.showMessageDialog(this,
+                 "La nota no puede estar vacía.",
+                 "Nota requerida", JOptionPane.WARNING_MESSAGE);
+             jTextField2.requestFocus();
+             return false;
+         }
+         //Validar que la nota sea número entre 0 y 100
+         try {
+             double valorNota = Double.parseDouble(nota);
+             if (valorNota < 0 || valorNota > 100) {
+                 JOptionPane.showMessageDialog(this,
+                     "La nota debe estar entre 0 y 100.",
+                     "Nota inválida", JOptionPane.WARNING_MESSAGE);
+                 jTextField2.requestFocus();
+                 return false;
+             }
+         } catch (NumberFormatException e) {
+             JOptionPane.showMessageDialog(this,
+                 "La nota debe ser un número válido. Ejemplo: 85 o 9.5",
+                 "Formato inválido", JOptionPane.WARNING_MESSAGE);
+             jTextField2.requestFocus();
+             return false;
+         }
+         //Validar que el comentario no esté vacío
+         String comentario = jTextArea3.getText().trim();
+         if (comentario.isEmpty()) {
+             JOptionPane.showMessageDialog(this,
+                 "El comentario no puede estar vacío.",
+                 "Comentario requerido", JOptionPane.WARNING_MESSAGE);
+             jTextArea3.requestFocus();
+             return false;
+         }
+
+         return true; // Todo okey
+     }
+   //task 6 Guardar calificación en la base de datos
+     private boolean guardarCalificacion(String tituloTarea, double nota, String comentario) {
+         try {
+             java.sql.Connection con = Conexiobd.Conexion();
+
+             String sql = "UPDATE Tarea SET nota = ?, comentario = ?, Estado = 'Calificado' WHERE Titulo = ?";
+
+             java.sql.PreparedStatement ps = con.prepareStatement(sql);
+             ps.setDouble(1, nota);
+             ps.setString(2, comentario);
+             ps.setString(3, tituloTarea);
+
+             int filasActualizadas = ps.executeUpdate();
+             con.close();
+
+             return filasActualizadas > 0;
+
+         } catch (Exception e) {
+             JOptionPane.showMessageDialog(this, "Error BD: " + e.getMessage());
+             return false;
+         }
 }
     /**
      * This method is called from within the constructor to initialize the form.
