@@ -13,10 +13,77 @@ public class UStorieEst extends javax.swing.JFrame {
     /**
      * Creates new form UStorieEst
      */
+   private javax.swing.JTable jTable1;
+
+    /**
+     * Creates new form UStorieEst
+     */
     public UStorieEst() {
         initComponents();
         jPanel2.setVisible(false);
         jPanel3.setVisible(false);
+        jTable1 = new javax.swing.JTable();
+        jScrollPane2.setViewportView(jTable1);
+    }
+    // USR3 tasks7-carga datos de BD y aplica colores 
+    private void cargarTabla() {
+        String[] columnas = {"TITULO", "FECHA", "DESCRIPCION", "ARCHIVOS", "ESTADO"};
+        javax.swing.table.DefaultTableModel modelo =
+            new javax.swing.table.DefaultTableModel(columnas, 0);
+ 
+        try {
+            java.sql.Connection cn = Conexiobd.Conexion();
+            java.sql.Statement st = cn.createStatement();
+            java.sql.ResultSet rs = st.executeQuery(
+                "SELECT titulo, fecha_entrega, descripcion, archivos FROM Tarea ORDER BY fecha_entrega"
+            );
+ 
+            java.util.Date hoy = new java.util.Date();
+ 
+            while (rs.next()) {
+                String titulo          = rs.getString("titulo");
+                java.sql.Date fecha    = rs.getDate("fecha_entrega");
+                String descripcion     = rs.getString("descripcion");
+                String archivos        = rs.getString("archivos");
+ 
+                //Estado se calcula, NO se guarda en BD
+                String estado = fecha.before(hoy) ? "Vencida" : "Activa";
+ 
+                modelo.addRow(new Object[]{titulo, fecha, descripcion, archivos, estado});
+            }
+ 
+            jTable1.setModel(modelo);
+ 
+            //Colores: Rojo = Vencida, Verde = Activa
+            javax.swing.table.DefaultTableCellRenderer renderer =
+                new javax.swing.table.DefaultTableCellRenderer() {
+                @Override
+                public java.awt.Component getTableCellRendererComponent(
+                        javax.swing.JTable table, Object value,
+                        boolean isSelected, boolean hasFocus, int row, int column) {
+ 
+                    java.awt.Component c = super.getTableCellRendererComponent(
+                            table, value, isSelected, hasFocus, row, column);
+ 
+                    String estado = (String) table.getValueAt(row, 4); // columna ESTADO
+ 
+                    if (estado.equals("Vencida")) {
+                        c.setBackground(new java.awt.Color(255, 150, 150)); //Rojo
+                    } else {
+                        c.setBackground(new java.awt.Color(150, 255, 150)); //Verde
+                    }
+                    return c;
+                }
+            };
+ 
+            // Aplicar renderer a todas las columnas
+            for (int i = 0; i < jTable1.getColumnCount(); i++) {
+                jTable1.getColumnModel().getColumn(i).setCellRenderer(renderer);
+            }
+ 
+        } catch (Exception e) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Error al cargar tareas: " + e.getMessage());
+        }
     }
 
     /**
