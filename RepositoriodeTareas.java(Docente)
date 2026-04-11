@@ -1,9 +1,13 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JFrame.java to edit this template
+ */
 package UStorie;
 import java.io.File;
 import javax.swing.DefaultListModel;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
-import java.awt.Color;
+import java.awt.Color;   
 import java.awt.Component;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -17,7 +21,7 @@ javax.swing.JList<String> listaArchivos = new javax.swing.JList<>(modeloArchivos
 java.util.ArrayList<String> rutasArchivos = new java.util.ArrayList<>();
 int filaSeleccionada = -1;
     /**
-     * Creates new form USTORIES
+     * Creates new form USTASK
      */
     public USTORIES() {
         initComponents();
@@ -29,7 +33,6 @@ int filaSeleccionada = -1;
         jPanel3.setLayout(new java.awt.BorderLayout());
 jPanel3.add(new javax.swing.JScrollPane(listaArchivos), java.awt.BorderLayout.CENTER);
 
-// Abrir archivo con doble click
 listaArchivos.addMouseListener(new java.awt.event.MouseAdapter() {
     @Override
     public void mouseClicked(java.awt.event.MouseEvent evt) {
@@ -67,7 +70,7 @@ listaArchivos.addMouseListener(new java.awt.event.MouseAdapter() {
             java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 
             try {
-                String fechaTexto = table.getValueAt(row, 1).toString(); // columna FECHA
+                String fechaTexto = table.getValueAt(row, 1).toString(); 
 
                 java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
                 java.util.Date fechaTarea = sdf.parse(fechaTexto);
@@ -75,7 +78,7 @@ listaArchivos.addMouseListener(new java.awt.event.MouseAdapter() {
                 java.util.Date hoy = new java.util.Date();
 
                 if (fechaTarea.before(hoy)) {
-                    c.setBackground(new java.awt.Color(255, 102, 102)); // rojo suave
+                    c.setBackground(new java.awt.Color(255, 102, 102)); 
                     c.setForeground(java.awt.Color.WHITE);
                 } else {
                     c.setBackground(java.awt.Color.WHITE);
@@ -90,7 +93,6 @@ listaArchivos.addMouseListener(new java.awt.event.MouseAdapter() {
             return c;  
         }
     });
-        // Renderer para jTable2 — colores por estado
 jTable2.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
     @Override
     public java.awt.Component getTableCellRendererComponent(
@@ -99,21 +101,16 @@ jTable2.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellR
         java.awt.Component c = super.getTableCellRendererComponent(
                 table, value, isSelected, hasFocus, row, column);
         try {
-            // Columna 5 = NOTA
             String nota = table.getValueAt(row, 5).toString();
-            // Columna 3 = ESTADO
             String estado = table.getValueAt(row, 3).toString();
 
             if (!nota.equals("Sin calificar")) {
-                // Tiene nota = Calificado → Verde
                 c.setBackground(new java.awt.Color(144, 238, 144));
                 c.setForeground(java.awt.Color.BLACK);
             } else if (estado.equalsIgnoreCase("Vencida")) {
-                // Sin nota y vencida → Rojo
                 c.setBackground(new java.awt.Color(255, 102, 102));
                 c.setForeground(java.awt.Color.WHITE);
             } else {
-                // Sin nota y activa → Amarillo (pendiente)
                 c.setBackground(new java.awt.Color(255, 255, 153));
                 c.setForeground(java.awt.Color.BLACK);
             }
@@ -206,13 +203,11 @@ private void cargarComboBoxTareas() {
     }
 }
 
-    //TASK 6 Acción del botón GUARDAR CALIFICACIÓN
     private void accionGuardarCalificacion(java.awt.event.ActionEvent evt) {
     if (!validarFormulario()) {
         return;
     }
     int fila = jTable2.getSelectedRow();
-    // col 0=TITULO, col 4=ESTUDIANTE
     String tituloTarea      = jTable2.getValueAt(fila, 0).toString();
     String nombreEstudiante = jTable2.getValueAt(fila, 4).toString();
     double nota      = Double.parseDouble(jTextField2.getText().trim());
@@ -233,8 +228,7 @@ private void cargarComboBoxTareas() {
             "Error", JOptionPane.ERROR_MESSAGE);
     }
 }
-    
-// TASK 7 — Acción del botón EDITAR CALIFICACIÓN (jToggleButton10)
+
 private void accionEditarCalificacion(java.awt.event.ActionEvent evt) {
         int fila = jTable2.getSelectedRow();
         if (fila == -1) {
@@ -243,7 +237,6 @@ private void accionEditarCalificacion(java.awt.event.ActionEvent evt) {
                     "Sin selección", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        // col 5=NOTA, col 6=COMENTARIO
         String notaActual = jTable2.getValueAt(fila, 5).toString();
         String comentarioActual = jTable2.getValueAt(fila, 6).toString();
 
@@ -255,7 +248,6 @@ private void accionEditarCalificacion(java.awt.event.ActionEvent evt) {
                 "Editar calificación", JOptionPane.INFORMATION_MESSAGE);
     }
 
-// TASK 9 — Recargar jTable2 después de calificar (entregas/revisados)
 private void cargarTablaCalificaciones() {
         try {
             java.sql.Connection con = Conexiobd.Conexion();
@@ -302,7 +294,6 @@ private void cargarTablaCalificaciones() {
     }
 
 private boolean validarFormulario() {
-        //Validar que haya una fila seleccionada en jTable2
         if (jTable2.getSelectedRow() == -1) {
             JOptionPane.showMessageDialog(this,
                 "Debes seleccionar una entrega de la tabla.",
@@ -310,7 +301,6 @@ private boolean validarFormulario() {
             return false;
         }
  
-        //Validar que la nota no esté vacía
         String nota = jTextField2.getText().trim();
         if (nota.isEmpty()) {
             JOptionPane.showMessageDialog(this,
@@ -319,7 +309,7 @@ private boolean validarFormulario() {
             jTextField2.requestFocus();
             return false;
         }
-        //Validar que la nota sea número entre 0 y 100
+      
         try {
             double valorNota = Double.parseDouble(nota);
             if (valorNota < 0 || valorNota > 100) {
@@ -336,7 +326,7 @@ private boolean validarFormulario() {
             jTextField2.requestFocus();
             return false;
         }
-        //Validar que el comentario no esté vacío
+    
         String comentario = jTextArea3.getText().trim();
         if (comentario.isEmpty()) {
             JOptionPane.showMessageDialog(this,
@@ -1099,12 +1089,10 @@ private boolean validarFormulario() {
                     + "JOIN Estudiante e ON te.id_estudiante = e.id_estudiante "
                     + "WHERE 1=1 ";
 
-            // Agregar filtros dinámicamente
             if (!todasTareas) {
                 sql += "AND t.Titulo = ? ";
             }
             if (!todosEstudiantes) {
-                // Extraemos el id del string "1 - Juan Perez"
                 int idEstudiante = Integer.parseInt(estudianteSeleccionado.split(" - ")[0].trim());
                 sql += "AND e.id_estudiante = " + idEstudiante + " ";
             }
