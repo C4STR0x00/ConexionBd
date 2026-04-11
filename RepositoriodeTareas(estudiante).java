@@ -368,6 +368,7 @@ public class UStorieEst extends javax.swing.JFrame {
     private void jToggleButton1ActionPerformed(java.awt.event.ActionEvent evt) {                                               
        jPanel2.setVisible(true);
         jPanel3.setVisible(false);
+        cargarTabla(); //Carga la tabla con colore al presionar verTarea
     }                                              
 
     private void jToggleButton2ActionPerformed(java.awt.event.ActionEvent evt) {                                               
