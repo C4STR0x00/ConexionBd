@@ -1,28 +1,21 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JFrame.java to edit this template
- */
 package UStorie;
 import java.io.File;
 import javax.swing.DefaultListModel;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
-import java.awt.Color;   
+import java.awt.Color;
 import java.awt.Component;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableCellRenderer;
-/**
- *
- * @author Pcarmagedon
- */
+import java.sql.Statement;
+import java.sql.ResultSet;
+import javax.swing.table.DefaultTableModel;
+import java.sql.PreparedStatement;
+
 public class USTORIES extends javax.swing.JFrame {
 DefaultListModel modeloArchivos = new DefaultListModel();
-javax.swing.JList<String> listaArchivos = new javax.swing.JList<>(modeloArchivos);
-java.util.ArrayList<String> rutasArchivos = new java.util.ArrayList<>();
 int filaSeleccionada = -1;
-    /**
-     * Creates new form USTASK
-     */
+    
     public USTORIES() {
         initComponents();
         jToggleButton5.setVisible(false);
@@ -31,30 +24,7 @@ int filaSeleccionada = -1;
         jPanel5.setVisible(false);
         javax.swing.JList listaArchivos = new javax.swing.JList(modeloArchivos);
         jPanel3.setLayout(new java.awt.BorderLayout());
-jPanel3.add(new javax.swing.JScrollPane(listaArchivos), java.awt.BorderLayout.CENTER);
-
-listaArchivos.addMouseListener(new java.awt.event.MouseAdapter() {
-    @Override
-    public void mouseClicked(java.awt.event.MouseEvent evt) {
-        if (evt.getClickCount() == 2) {
-            int indice = listaArchivos.getSelectedIndex();
-            if (indice == -1 || indice >= rutasArchivos.size()) {
-                JOptionPane.showMessageDialog(null, "Selecciona un archivo");
-                return;
-            }
-            try {
-                java.io.File archivo = new java.io.File(rutasArchivos.get(indice));
-                if (archivo.exists()) {
-                    java.awt.Desktop.getDesktop().open(archivo);
-                } else {
-                    JOptionPane.showMessageDialog(null, "El archivo no existe en esa ruta");
-                }
-            } catch (Exception e) {
-                JOptionPane.showMessageDialog(null, "No se pudo abrir: " + e.getMessage());
-            }
-        }
-    }
-});
+        jPanel3.add(new javax.swing.JScrollPane(listaArchivos), java.awt.BorderLayout.CENTER);
         javax.swing.table.DefaultTableModel modeloTabla = new javax.swing.table.DefaultTableModel();
         modeloTabla.addColumn("TITULO");
         modeloTabla.addColumn("FECHA");
@@ -62,7 +32,7 @@ listaArchivos.addMouseListener(new java.awt.event.MouseAdapter() {
         modeloTabla.addColumn("ARCHIVOS");
         modeloTabla.addColumn("ESTADO");  
         jTable1.setModel(modeloTabla);
-        jTable1.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
+       jTable1.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
         @Override
         public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value,
                 boolean isSelected, boolean hasFocus, int row, int column) {
@@ -70,7 +40,7 @@ listaArchivos.addMouseListener(new java.awt.event.MouseAdapter() {
             java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 
             try {
-                String fechaTexto = table.getValueAt(row, 1).toString(); 
+                String fechaTexto = table.getValueAt(row, 1).toString(); // columna FECHA
 
                 java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
                 java.util.Date fechaTarea = sdf.parse(fechaTexto);
@@ -78,7 +48,7 @@ listaArchivos.addMouseListener(new java.awt.event.MouseAdapter() {
                 java.util.Date hoy = new java.util.Date();
 
                 if (fechaTarea.before(hoy)) {
-                    c.setBackground(new java.awt.Color(255, 102, 102)); 
+                    c.setBackground(new java.awt.Color(255, 102, 102)); // rojo suave
                     c.setForeground(java.awt.Color.WHITE);
                 } else {
                     c.setBackground(java.awt.Color.WHITE);
@@ -90,69 +60,42 @@ listaArchivos.addMouseListener(new java.awt.event.MouseAdapter() {
                 c.setForeground(java.awt.Color.BLACK);
             }
 
-            return c;  
+            return c;
         }
     });
-jTable2.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
-    @Override
-    public java.awt.Component getTableCellRendererComponent(
-            javax.swing.JTable table, Object value,
-            boolean isSelected, boolean hasFocus, int row, int column) {
-        java.awt.Component c = super.getTableCellRendererComponent(
-                table, value, isSelected, hasFocus, row, column);
-        try {
-            String nota = table.getValueAt(row, 5).toString();
-            String estado = table.getValueAt(row, 3).toString();
-
-            if (!nota.equals("Sin calificar")) {
-                c.setBackground(new java.awt.Color(144, 238, 144));
-                c.setForeground(java.awt.Color.BLACK);
-            } else if (estado.equalsIgnoreCase("Vencida")) {
-                c.setBackground(new java.awt.Color(255, 102, 102));
-                c.setForeground(java.awt.Color.WHITE);
-            } else {
-                c.setBackground(new java.awt.Color(255, 255, 153));
-                c.setForeground(java.awt.Color.BLACK);
-            }
-        } catch (Exception e) {
-            c.setBackground(java.awt.Color.WHITE);
-            c.setForeground(java.awt.Color.BLACK);
-        }
-        return c;
-    }
-});
     }
 
     private void cargarTabla() {
     try {
         java.sql.Connection con = Conexiobd.Conexion();
-        String sql = "SELECT t.Titulo, t.Fecha_entrega, t.Descripcion, " +
-                     "GROUP_CONCAT(a.ruta_archivo SEPARATOR ', ') AS archivos " +
-                     "FROM Tarea t " +
-                     "LEFT JOIN Archivo_tarea a ON t.id_tarea = a.id_tarea " +
-                     "GROUP BY t.id_tarea, t.Titulo, t.Fecha_entrega, t.Descripcion";
-
+        String sql = "SELECT Titulo, Fecha_entrega, Descripcion FROM Tarea";
         java.sql.Statement st = con.createStatement();
         java.sql.ResultSet rs = st.executeQuery(sql);
 
         javax.swing.table.DefaultTableModel modelo =
             (javax.swing.table.DefaultTableModel) jTable1.getModel();
+
         modelo.setRowCount(0);
 
         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
         java.util.Date hoy = new java.util.Date();
 
         while (rs.next()) {
-            String titulo      = rs.getString("Titulo");
-            String fechaTexto  = rs.getString("Fecha_entrega");
+            String titulo = rs.getString("Titulo");
+            String fechaTexto = rs.getString("Fecha_entrega");
             String descripcion = rs.getString("Descripcion");
-            // Si no tiene archivos muestra "Sin archivos"
-            String archivos    = rs.getString("archivos") != null ? rs.getString("archivos") : "Sin archivos";
 
+            // 👇 CALCULAR ESTADO
             java.util.Date fecha = sdf.parse(fechaTexto);
-            String estado = fecha.before(hoy) ? "Vencida" : "Activa";
+            String estado;
 
-            modelo.addRow(new Object[]{titulo, fechaTexto, descripcion, archivos, estado});
+            if (fecha.before(hoy)) {
+                estado = "Vencida";
+            } else {
+                estado = "Activa";
+            }
+
+            modelo.addRow(new Object[]{titulo, fechaTexto, descripcion, "", estado});
         }
 
         con.close();
@@ -161,232 +104,7 @@ jTable2.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellR
         JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
     }
 }
-    private void cargarComboBoxEstudiantes() {
-    try {
-        java.sql.Connection con = Conexiobd.Conexion();
-        String sql = "SELECT id_estudiante, nombre, apellido FROM Estudiante";
-        java.sql.Statement st = con.createStatement();
-        java.sql.ResultSet rs = st.executeQuery(sql);
-
-        jComboBox2.removeAllItems();
-        jComboBox2.addItem("-- Todos los estudiantes --");
-
-        while (rs.next()) {
-            jComboBox2.addItem(rs.getInt("id_estudiante") + " - " +
-                rs.getString("nombre") + " " + rs.getString("apellido"));
-        }
-
-        con.close();
-
-    } catch (Exception e) {
-        JOptionPane.showMessageDialog(this, "Error al cargar estudiantes: " + e.getMessage());
-    }
-}
-private void cargarComboBoxTareas() {
-    try {
-        java.sql.Connection con = Conexiobd.Conexion();
-        String sql = "SELECT Titulo FROM Tarea";
-        java.sql.Statement st = con.createStatement();
-        java.sql.ResultSet rs = st.executeQuery(sql);
-
-        jComboBox1.removeAllItems();
-        jComboBox1.addItem("-- Selecciona una tarea --"); // opción por defecto
-
-        while (rs.next()) {
-            jComboBox1.addItem(rs.getString("Titulo"));
-        }
-
-        con.close();
-
-    } catch (Exception e) {
-        JOptionPane.showMessageDialog(this, "Error al cargar tareas: " + e.getMessage());
-    }
-}
-
-    private void accionGuardarCalificacion(java.awt.event.ActionEvent evt) {
-    if (!validarFormulario()) {
-        return;
-    }
-    int fila = jTable2.getSelectedRow();
-    String tituloTarea      = jTable2.getValueAt(fila, 0).toString();
-    String nombreEstudiante = jTable2.getValueAt(fila, 4).toString();
-    double nota      = Double.parseDouble(jTextField2.getText().trim());
-    String comentario = jTextArea3.getText().trim();
-
-    boolean exito = guardarCalificacion(tituloTarea, nombreEstudiante, nota, comentario);
-    if (exito) {
-        JOptionPane.showMessageDialog(this,
-            "Calificación guardada correctamente.",
-            "Éxito", JOptionPane.INFORMATION_MESSAGE);
-        jTextField2.setText("");
-        jTextArea3.setText("");
-        jTable2.clearSelection();
-        cargarTablaCalificaciones();
-    } else {
-        JOptionPane.showMessageDialog(this,
-            "Error al guardar. Intente nuevamente.",
-            "Error", JOptionPane.ERROR_MESSAGE);
-    }
-}
-
-private void accionEditarCalificacion(java.awt.event.ActionEvent evt) {
-        int fila = jTable2.getSelectedRow();
-        if (fila == -1) {
-            JOptionPane.showMessageDialog(this,
-                    "Selecciona una fila de la tabla para editar.",
-                    "Sin selección", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        String notaActual = jTable2.getValueAt(fila, 5).toString();
-        String comentarioActual = jTable2.getValueAt(fila, 6).toString();
-
-        jTextField2.setText(notaActual.equals("Sin calificar") ? "" : notaActual);
-        jTextArea3.setText(comentarioActual.equals("-") ? "" : comentarioActual);
-
-        JOptionPane.showMessageDialog(this,
-                "Modifica y presiona GUARDAR CALIFICACIÓN.",
-                "Editar calificación", JOptionPane.INFORMATION_MESSAGE);
-    }
-
-private void cargarTablaCalificaciones() {
-        try {
-            java.sql.Connection con = Conexiobd.Conexion();
-
-            String sql = "SELECT t.Titulo, t.Descripcion, t.Fecha_entrega, t.Estado, "
-                    + "CONCAT(e.nombre, ' ', e.apellido) AS estudiante, "
-                    + "te.nota, te.comentario "
-                    + "FROM Tarea_Estudiante te "
-                    + "JOIN Tarea t ON te.id_tarea = t.id_tarea "
-                    + "JOIN Estudiante e ON te.id_estudiante = e.id_estudiante";
-
-            java.sql.Statement st = con.createStatement();
-            java.sql.ResultSet rs = st.executeQuery(sql);
-
-            javax.swing.table.DefaultTableModel modelo = new javax.swing.table.DefaultTableModel(
-                    new String[]{"TITULO", "DESCRIPCION", "FECHA", "ESTADO", "ESTUDIANTE", "NOTA", "COMENTARIO"}, 0
-            ) {
-                public boolean isCellEditable(int row, int col) {
-                    return false;
-                }
-            };
-
-            while (rs.next()) {
-                String nota = rs.getString("nota") != null ? rs.getString("nota") : "Sin calificar";
-                String comentario = rs.getString("comentario") != null ? rs.getString("comentario") : "-";
-
-                modelo.addRow(new Object[]{
-                    rs.getString("Titulo"),
-                    rs.getString("Descripcion"),
-                    rs.getString("Fecha_entrega"),
-                    rs.getString("Estado"),
-                    rs.getString("estudiante"),
-                    nota,
-                    comentario
-                });
-            }
-
-            jTable2.setModel(modelo);
-            con.close();
-
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error al cargar tabla: " + e.getMessage());
-        }
-    }
-
-private boolean validarFormulario() {
-        if (jTable2.getSelectedRow() == -1) {
-            JOptionPane.showMessageDialog(this,
-                "Debes seleccionar una entrega de la tabla.",
-                "Sin selección", JOptionPane.WARNING_MESSAGE);
-            return false;
-        }
- 
-        String nota = jTextField2.getText().trim();
-        if (nota.isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                "La nota no puede estar vacía.",
-                "Nota requerida", JOptionPane.WARNING_MESSAGE);
-            jTextField2.requestFocus();
-            return false;
-        }
-      
-        try {
-            double valorNota = Double.parseDouble(nota);
-            if (valorNota < 0 || valorNota > 100) {
-                JOptionPane.showMessageDialog(this,
-                    "La nota debe estar entre 0 y 100.",
-                    "Nota inválida", JOptionPane.WARNING_MESSAGE);
-                jTextField2.requestFocus();
-                return false;
-            }
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this,
-                "La nota debe ser un número válido. Ejemplo: 85 o 9.5",
-                "Formato inválido", JOptionPane.WARNING_MESSAGE);
-            jTextField2.requestFocus();
-            return false;
-        }
     
-        String comentario = jTextArea3.getText().trim();
-        if (comentario.isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                "El comentario no puede estar vacío.",
-                "Comentario requerido", JOptionPane.WARNING_MESSAGE);
-            jTextArea3.requestFocus();
-            return false;
-        }
-        return true; 
-    }
-    private boolean guardarCalificacion(String tituloTarea, String nombreEstudiante, double nota, String comentario) {
-    try {
-        java.sql.Connection con = Conexiobd.Conexion();
-        System.out.println("Titulo: " + tituloTarea);
-        System.out.println("Estudiante: '" + nombreEstudiante + "'");
-        String sqlTarea = "SELECT id_tarea FROM Tarea WHERE Titulo = ?";
-        java.sql.PreparedStatement psTarea = con.prepareStatement(sqlTarea);
-        psTarea.setString(1, tituloTarea);
-        java.sql.ResultSet rsTarea = psTarea.executeQuery();
-        if (!rsTarea.next()) {
-            JOptionPane.showMessageDialog(this, "No se encontró la tarea: " + tituloTarea);
-            con.close();
-            return false;
-        }
-        int idTarea = rsTarea.getInt("id_tarea");
-        System.out.println("idTarea encontrado: " + idTarea);
-        String sqlEst = "SELECT id_estudiante FROM Estudiante WHERE CONCAT(nombre, ' ', apellido) = ?";
-        java.sql.PreparedStatement psEst = con.prepareStatement(sqlEst);
-        psEst.setString(1, nombreEstudiante);
-        java.sql.ResultSet rsEst = psEst.executeQuery();
-        if (!rsEst.next()) {
-            JOptionPane.showMessageDialog(this, "No se encontró el estudiante: '" + nombreEstudiante + "'");
-            con.close();
-            return false;
-        }
-        int idEstudiante = rsEst.getInt("id_estudiante");
-        System.out.println("idEstudiante encontrado: " + idEstudiante);
-        String sql = "UPDATE Tarea_Estudiante SET nota = ?, comentario = ? " +
-                     "WHERE id_tarea = ? AND id_estudiante = ?";
-        java.sql.PreparedStatement ps = con.prepareStatement(sql);
-        ps.setDouble(1, nota);
-        ps.setString(2, comentario);
-        ps.setInt(3, idTarea);
-        ps.setInt(4, idEstudiante);
-
-        int filas = ps.executeUpdate();
-        System.out.println("Filas actualizadas: " + filas);
-        con.close();
-        return filas > 0;
-
-    } catch (Exception e) {
-        JOptionPane.showMessageDialog(this, "Error BD: " + e.getMessage());
-        return false;
-    }
-}
-    /**
-     * This method is called from within the constructor to initialize the form.
-     * WARNING: Do NOT modify this code. The content of this method is always
-     * regenerated by the Form Editor.
-     */
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">                          
     private void initComponents() {
@@ -411,19 +129,12 @@ private boolean validarFormulario() {
         jScrollPane5 = new javax.swing.JScrollPane();
         jTextArea3 = new javax.swing.JTextArea();
         jToggleButton9 = new javax.swing.JToggleButton();
-        jLabel11 = new javax.swing.JLabel();
-        jComboBox2 = new javax.swing.JComboBox<>();
-        jLabel12 = new javax.swing.JLabel();
-        jToggleButton10 = new javax.swing.JToggleButton();
         jPanel4 = new javax.swing.JPanel();
-        jPanel8 = new javax.swing.JPanel();
-        jLabel13 = new javax.swing.JLabel();
         jScrollPane2 = new javax.swing.JScrollPane();
         jTable1 = new javax.swing.JTable();
         jToggleButton4 = new javax.swing.JToggleButton();
+        jLabel4 = new javax.swing.JLabel();
         jPanel2 = new javax.swing.JPanel();
-        jPanel7 = new javax.swing.JPanel();
-        jLabel5 = new javax.swing.JLabel();
         jLabel1 = new javax.swing.JLabel();
         jTextField1 = new javax.swing.JTextField();
         jLabel2 = new javax.swing.JLabel();
@@ -435,6 +146,7 @@ private boolean validarFormulario() {
         jToggleButton2 = new javax.swing.JToggleButton();
         jToggleButton6 = new javax.swing.JToggleButton();
         jToggleButton5 = new javax.swing.JToggleButton();
+        jLabel5 = new javax.swing.JLabel();
         jToggleButton7 = new javax.swing.JToggleButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -480,11 +192,6 @@ private boolean validarFormulario() {
         jLabel7.setText("Seleccionar Tarea");
 
         jComboBox1.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        jComboBox1.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jComboBox1ActionPerformed(evt);
-            }
-        });
 
         jTable2.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
@@ -494,7 +201,7 @@ private boolean validarFormulario() {
                 {null, null, null, null}
             },
             new String [] {
-                "Title 1", "Title 2", "Title 3", "Title 4"
+                "id", "Titulo", "Descripcion", "Estado"
             }
         ));
         jTable2.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -538,24 +245,6 @@ private boolean validarFormulario() {
             }
         });
 
-        jLabel11.setText("Detalles de Tarea");
-
-        jComboBox2.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        jComboBox2.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jComboBox2ActionPerformed(evt);
-            }
-        });
-
-        jLabel12.setText("Seleccionar Estudiante");
-
-        jToggleButton10.setText("EDITAR CALIFICACIÓN");
-        jToggleButton10.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jToggleButton10ActionPerformed(evt);
-            }
-        });
-
         javax.swing.GroupLayout jPanel5Layout = new javax.swing.GroupLayout(jPanel5);
         jPanel5.setLayout(jPanel5Layout);
         jPanel5Layout.setHorizontalGroup(
@@ -564,24 +253,15 @@ private boolean validarFormulario() {
             .addGroup(jPanel5Layout.createSequentialGroup()
                 .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel5Layout.createSequentialGroup()
-                        .addGap(273, 273, 273)
-                        .addComponent(jToggleButton9))
-                    .addGroup(jPanel5Layout.createSequentialGroup()
                         .addGap(18, 18, 18)
                         .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addGroup(jPanel5Layout.createSequentialGroup()
-                                .addComponent(jToggleButton8)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(jToggleButton10))
+                            .addComponent(jToggleButton8)
                             .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 654, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addGroup(jPanel5Layout.createSequentialGroup()
                                 .addComponent(jLabel7)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 139, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(jLabel12)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jComboBox2, javax.swing.GroupLayout.PREFERRED_SIZE, 135, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 139, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 537, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addGroup(jPanel5Layout.createSequentialGroup()
                                 .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(jLabel8)
@@ -592,9 +272,10 @@ private boolean validarFormulario() {
                                 .addGap(44, 44, 44)
                                 .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(jLabel10)
-                                    .addComponent(jScrollPane5)))
-                            .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 537, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(jLabel11))))
+                                    .addComponent(jScrollPane5)))))
+                    .addGroup(jPanel5Layout.createSequentialGroup()
+                        .addGap(273, 273, 273)
+                        .addComponent(jToggleButton9)))
                 .addContainerGap(41, Short.MAX_VALUE))
         );
         jPanel5Layout.setVerticalGroup(
@@ -604,18 +285,12 @@ private boolean validarFormulario() {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel7)
-                    .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jComboBox2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel12))
+                    .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 95, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jToggleButton8)
-                    .addComponent(jToggleButton10))
-                .addGap(2, 2, 2)
-                .addComponent(jLabel11)
-                .addGap(6, 6, 6)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jToggleButton8)
+                .addGap(18, 18, 18)
                 .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 74, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
@@ -630,33 +305,12 @@ private boolean validarFormulario() {
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel5Layout.createSequentialGroup()
                         .addGap(2, 2, 2)
                         .addComponent(jScrollPane5, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 42, Short.MAX_VALUE)
+                .addGap(29, 29, 29)
                 .addComponent(jToggleButton9)
-                .addGap(28, 28, 28))
+                .addGap(0, 41, Short.MAX_VALUE))
         );
 
-        jPanel4.setBackground(new java.awt.Color(204, 204, 204));
-
-        jPanel8.setBackground(new java.awt.Color(0, 102, 204));
-
-        jLabel13.setFont(new java.awt.Font("Yu Gothic UI Semibold", 1, 14)); // NOI18N
-        jLabel13.setText("MURO DE TAREAS");
-
-        javax.swing.GroupLayout jPanel8Layout = new javax.swing.GroupLayout(jPanel8);
-        jPanel8.setLayout(jPanel8Layout);
-        jPanel8Layout.setHorizontalGroup(
-            jPanel8Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel8Layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jLabel13)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-        );
-        jPanel8Layout.setVerticalGroup(
-            jPanel8Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel8Layout.createSequentialGroup()
-                .addComponent(jLabel13)
-                .addGap(0, 6, Short.MAX_VALUE))
-        );
+        jPanel4.setBackground(new java.awt.Color(204, 204, 255));
 
         jTable1.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
@@ -678,25 +332,34 @@ private boolean validarFormulario() {
             }
         });
 
+        jLabel4.setFont(new java.awt.Font("Yu Gothic UI Semibold", 1, 14)); // NOI18N
+        jLabel4.setText("MURO DE TAREAS");
+
         javax.swing.GroupLayout jPanel4Layout = new javax.swing.GroupLayout(jPanel4);
         jPanel4.setLayout(jPanel4Layout);
         jPanel4Layout.setHorizontalGroup(
             jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
-                .addContainerGap(125, Short.MAX_VALUE)
+            .addGroup(jPanel4Layout.createSequentialGroup()
+                .addContainerGap()
                 .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
-                        .addComponent(jToggleButton4)
-                        .addGap(284, 284, 284))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
-                        .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 473, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(115, 115, 115))))
-            .addComponent(jPanel8, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGap(0, 119, Short.MAX_VALUE)
+                        .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
+                                .addComponent(jToggleButton4)
+                                .addGap(284, 284, 284))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
+                                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 473, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(115, 115, 115))))
+                    .addGroup(jPanel4Layout.createSequentialGroup()
+                        .addComponent(jLabel4)
+                        .addGap(0, 0, Short.MAX_VALUE))))
         );
         jPanel4Layout.setVerticalGroup(
             jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
-                .addComponent(jPanel8, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap()
+                .addComponent(jLabel4)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 56, Short.MAX_VALUE)
                 .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 262, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(27, 27, 27)
@@ -704,28 +367,7 @@ private boolean validarFormulario() {
                 .addGap(63, 63, 63))
         );
 
-        jPanel2.setBackground(new java.awt.Color(204, 204, 204));
-
-        jPanel7.setBackground(new java.awt.Color(0, 102, 204));
-
-        jLabel5.setFont(new java.awt.Font("Yu Gothic UI Semibold", 1, 14)); // NOI18N
-        jLabel5.setText("CREACION DE TAREAS");
-
-        javax.swing.GroupLayout jPanel7Layout = new javax.swing.GroupLayout(jPanel7);
-        jPanel7.setLayout(jPanel7Layout);
-        jPanel7Layout.setHorizontalGroup(
-            jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel7Layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jLabel5)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-        );
-        jPanel7Layout.setVerticalGroup(
-            jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel7Layout.createSequentialGroup()
-                .addComponent(jLabel5)
-                .addGap(0, 6, Short.MAX_VALUE))
-        );
+        jPanel2.setBackground(new java.awt.Color(102, 102, 102));
 
         jLabel1.setText("TITULO DE TAREA");
 
@@ -769,6 +411,9 @@ private boolean validarFormulario() {
             }
         });
 
+        jLabel5.setFont(new java.awt.Font("Yu Gothic UI Semibold", 1, 14)); // NOI18N
+        jLabel5.setText("CREACION DE TAREAS");
+
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
@@ -777,7 +422,7 @@ private boolean validarFormulario() {
                 .addGap(87, 87, 87)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addGap(80, 80, 80)
+                        .addGap(53, 53, 53)
                         .addComponent(jToggleButton2)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(jToggleButton5))
@@ -789,54 +434,57 @@ private boolean validarFormulario() {
                 .addGap(65, 65, 65))
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 299, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(196, 196, 196))
+            .addGroup(jPanel2Layout.createSequentialGroup()
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel2))
-                .addGap(291, 291, 291))
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addComponent(jLabel3)
-                        .addGap(312, 312, 312))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addComponent(jLabel1)
-                        .addGap(298, 298, 298))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 299, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(196, 196, 196))))
-            .addComponent(jPanel7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGap(324, 324, 324)
+                        .addComponent(jLabel3))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(jLabel5)
+                        .addGap(163, 163, 163)
+                        .addComponent(jLabel1))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGap(299, 299, 299)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel2))))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
-                .addComponent(jPanel7, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jLabel1)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGap(18, 18, 18)
+                        .addComponent(jLabel1))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(jLabel5)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 20, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
+                .addGap(26, 26, 26)
                 .addComponent(jLabel3)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 69, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(17, 17, 17)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 69, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
                         .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addGap(29, 29, 29))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 50, Short.MAX_VALUE)
                         .addComponent(jToggleButton6)
-                        .addGap(52, 52, 52)
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(jToggleButton2)
-                            .addComponent(jToggleButton5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                        .addGap(51, 51, 51))))
+                        .addGap(48, 48, 48)))
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jToggleButton2)
+                    .addComponent(jToggleButton5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap(66, Short.MAX_VALUE))
         );
 
         jToggleButton7.setText("REVISION DE TAREAS");
@@ -902,13 +550,12 @@ private boolean validarFormulario() {
 
         int opcion = fileChooser.showOpenDialog(this);
 
-        if (opcion == JFileChooser.APPROVE_OPTION) {
+        if(opcion == JFileChooser.APPROVE_OPTION){
             File[] archivos = fileChooser.getSelectedFiles();
 
-            if (modeloArchivos.getSize() + archivos.length <= 5) {
-                for (File archivo : archivos) {
+            if(modeloArchivos.getSize() + archivos.length <= 5){
+                for(File archivo : archivos){
                     modeloArchivos.addElement(archivo.getName());
-                    rutasArchivos.add(archivo.getAbsolutePath()); // guarda la ruta completa
                 }
             } else {
                 JOptionPane.showMessageDialog(this, "Máximo 5 archivos");
@@ -923,7 +570,7 @@ private boolean validarFormulario() {
     }                                              
 
     private void jToggleButton4ActionPerformed(java.awt.event.ActionEvent evt) {                                               
-     filaSeleccionada = jTable1.getSelectedRow();
+    filaSeleccionada = jTable1.getSelectedRow();
 
     if(filaSeleccionada == -1){
         JOptionPane.showMessageDialog(this, "Selecciona una tarea");
@@ -945,7 +592,7 @@ private boolean validarFormulario() {
     }                                              
 
     private void jToggleButton6ActionPerformed(java.awt.event.ActionEvent evt) {                                               
-    String titulo = jTextField1.getText();
+      String titulo = jTextField1.getText();
     String descripcion = jTextArea1.getText();
     java.util.Date fecha = jDateChooser1.getDate();
 
@@ -962,7 +609,7 @@ private boolean validarFormulario() {
 
         String sql = "INSERT INTO Tarea (Titulo, Descripcion, Fecha_entrega, Estado) VALUES (?, ?, ?, ?)";
 
-        java.sql.PreparedStatement ps = con.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS);
+        java.sql.PreparedStatement ps = con.prepareStatement(sql);
 
         ps.setString(1, titulo);
         ps.setString(2, descripcion);
@@ -980,30 +627,8 @@ private boolean validarFormulario() {
      ps.setString(4, estado);
 
         ps.executeUpdate();
-       
-        java.sql.ResultSet generatedKeys = ps.getGeneratedKeys();
-        if (generatedKeys.next()) {
-            int idTareaNueva = generatedKeys.getInt(1);
 
-            String sqlEstudiantes = "SELECT id_estudiante FROM Estudiante";
-            java.sql.Statement stEst = con.createStatement();
-            java.sql.ResultSet rsEst = stEst.executeQuery(sqlEstudiantes);
-
-            String sqlAsignar = "INSERT INTO Tarea_Estudiante (id_tarea, id_estudiante) VALUES (?, ?)";
-            java.sql.PreparedStatement psAsignar = con.prepareStatement(sqlAsignar);
-
-            while (rsEst.next()) {
-                psAsignar.setInt(1, idTareaNueva);
-                psAsignar.setInt(2, rsEst.getInt("id_estudiante"));
-                psAsignar.executeUpdate();
-            }
-        }
         JOptionPane.showMessageDialog(this, "Se agrego la Tarea");
-        jTextField1.setText("");
-        jTextArea1.setText("");
-        jDateChooser1.setDate(null);
-        modeloArchivos.clear();
-        rutasArchivos.clear();
 
         con.close();
      cargarTabla();
@@ -1016,7 +641,7 @@ private boolean validarFormulario() {
     }                                              
 
     private void jToggleButton5ActionPerformed(java.awt.event.ActionEvent evt) {                                               
-    String titulo = jTextField1.getText();
+       String titulo = jTextField1.getText();
     String descripcion = jTextArea1.getText();
     java.util.Date fecha = jDateChooser1.getDate();
 
@@ -1042,13 +667,7 @@ private boolean validarFormulario() {
         ps.executeUpdate();
 
         JOptionPane.showMessageDialog(this, "Tarea actualizada");
-        jTextField1.setText("");
-        jTextArea1.setText("");
-        jDateChooser1.setDate(null);
-        modeloArchivos.clear();
-        rutasArchivos.clear();
-        jToggleButton5.setVisible(false);
-        jToggleButton6.setEnabled(true);
+
         con.close();
 
     } catch(Exception e){
@@ -1057,129 +676,88 @@ private boolean validarFormulario() {
     }                                              
 
     private void jToggleButton7ActionPerformed(java.awt.event.ActionEvent evt) {                                               
-    jPanel5.setVisible(true);
+     jPanel5.setVisible(true);
     jPanel4.setVisible(false);
     jPanel2.setVisible(false);
-    cargarComboBoxTareas(); 
-    cargarComboBoxEstudiantes(); 
-    cargarTablaCalificaciones();
     }                                              
 
     private void jToggleButton8ActionPerformed(java.awt.event.ActionEvent evt) {                                               
-        String tareaSeleccionada = jComboBox1.getSelectedItem().toString();
-        String estudianteSeleccionado = jComboBox2.getSelectedItem().toString();
+        
+        
+        java.sql.Connection con = Conexiobd.Conexion();
+            try {
+            Statement st = con.createStatement();
+            ResultSet rs = st.executeQuery("SELECT id_tarea, titulo, descripcion, estado FROM Tarea");
 
-        boolean todasTareas = tareaSeleccionada.equals("-- Selecciona una tarea --");
-        boolean todosEstudiantes = estudianteSeleccionado.equals("-- Todos los estudiantes --");
-
-        // Si no filtró nada, carga todo
-        if (todasTareas && todosEstudiantes) {
-            cargarTablaCalificaciones();
-            return;
-        }
-
-        try {
-            java.sql.Connection con = Conexiobd.Conexion();
-
-            String sql = "SELECT t.Titulo, t.Descripcion, t.Fecha_entrega, t.Estado, "
-                    + "CONCAT(e.nombre, ' ', e.apellido) AS estudiante, "
-                    + "te.nota, te.comentario "
-                    + "FROM Tarea_Estudiante te "
-                    + "JOIN Tarea t ON te.id_tarea = t.id_tarea "
-                    + "JOIN Estudiante e ON te.id_estudiante = e.id_estudiante "
-                    + "WHERE 1=1 ";
-
-            if (!todasTareas) {
-                sql += "AND t.Titulo = ? ";
-            }
-            if (!todosEstudiantes) {
-                int idEstudiante = Integer.parseInt(estudianteSeleccionado.split(" - ")[0].trim());
-                sql += "AND e.id_estudiante = " + idEstudiante + " ";
-            }
-
-            java.sql.PreparedStatement ps = con.prepareStatement(sql);
-
-            if (!todasTareas) {
-                ps.setString(1, tareaSeleccionada);
-            }
-
-            java.sql.ResultSet rs = ps.executeQuery();
-
-            javax.swing.table.DefaultTableModel modelo = new javax.swing.table.DefaultTableModel(
-                    new String[]{"TITULO", "DESCRIPCION", "FECHA", "ESTADO", "ESTUDIANTE", "NOTA", "COMENTARIO"}, 0
-            ) {
-                public boolean isCellEditable(int row, int col) {
-                    return false;
-                }
-            };
-
+            // 3. Modelo de la tabla
+            DefaultTableModel modelo = (DefaultTableModel) jTable2.getModel();
+            modelo.setRowCount(0); // limpiar tabla
+            
+            // 4. Llenar datos
             while (rs.next()) {
-                String nota = rs.getString("nota") != null ? rs.getString("nota") : "Sin calificar";
-                String comentario = rs.getString("comentario") != null ? rs.getString("comentario") : "-";
-
-                modelo.addRow(new Object[]{
-                    rs.getString("Titulo"),
-                    rs.getString("Descripcion"),
-                    rs.getString("Fecha_entrega"),
-                    rs.getString("Estado"),
-                    rs.getString("estudiante"),
-                    nota,
-                    comentario
-                });
+                Object[] fila = new Object[modelo.getColumnCount()];
+                fila[0] = rs.getInt("id_tarea");
+                fila[1] = rs.getString("titulo");
+                fila[2] = rs.getString("descripcion");
+                fila[3] = rs.getString("estado");                
+                modelo.addRow(fila);
             }
 
-            jTable2.setModel(modelo);
             con.close();
 
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error al filtrar: " + e.getMessage());
-        }
+            System.out.println("error de conexion de base de datos " + e.toString());
+            JOptionPane.showMessageDialog(null, "Error de coenxion de base de datos " + e);
+        } 
+    
     }                                              
 
     private void jTextField2ActionPerformed(java.awt.event.ActionEvent evt) {                                            
         // TODO add your handling code here:
     }                                           
 
-    private void jToggleButton9ActionPerformed(java.awt.event.ActionEvent evt) {                                               
-        // TODO add your handling code here:
-    }                                              
-
-    private void jComboBox2ActionPerformed(java.awt.event.ActionEvent evt) {                                           
-        // TODO add your handling code here:
-    }                                          
-
-    private void jToggleButton10ActionPerformed(java.awt.event.ActionEvent evt) {                                                
-        
-        accionEditarCalificacion(evt);
-    }                                               
-
-    private void jComboBox1ActionPerformed(java.awt.event.ActionEvent evt) {                                           
-        // TODO add your handling code here:
-    }                                          
-
     private void jTable2MouseClicked(java.awt.event.MouseEvent evt) {                                     
         int fila = jTable2.getSelectedRow();
+        filaSeleccionada = Integer.parseInt(jTable2.getValueAt(fila, 0).toString());
         if (fila != -1) {
-            String titulo = jTable2.getValueAt(fila, 0).toString();
-            String descripcion = jTable2.getValueAt(fila, 1).toString();
-            String fecha = jTable2.getValueAt(fila, 2).toString();
-            String estado = jTable2.getValueAt(fila, 3).toString();
-            String estudiante = jTable2.getValueAt(fila, 4).toString();
-            String nota = jTable2.getValueAt(fila, 5).toString();
-            String comentario = jTable2.getValueAt(fila, 6).toString();
+        String titulo = jTable2.getValueAt(fila, 1).toString();
+        String descripcion = jTable2.getValueAt(fila, 2).toString();
 
-            jTextArea2.setText(
-                    "Titulo: " + titulo + "\n\n"
-                    + "Descripcion: " + descripcion + "\n\n"
-                    + "Fecha: " + fecha + "\n\n"
-                    + "Estado: " + estado + "\n\n"
-                    + "Estudiante: " + estudiante + "\n\n"
-                    + "Nota: " + nota + "\n\n"
-                    + "Comentario: " + comentario
-            );
-            filaSeleccionada = fila;
-        }
+        jTextArea2.setText("Titulo: " + titulo + "\n\nDescripcion: " + descripcion);
+        }    
+        System.out.println(filaSeleccionada);
     }                                    
+
+    private void jToggleButton9ActionPerformed(java.awt.event.ActionEvent evt) {                                               
+        // guardaremo en la base de datos 
+        try {
+            java.sql.Connection con = Conexiobd.Conexion();
+
+            int nota = Integer.parseInt(jTextField2.getText());
+            String comentario = jTextArea3.getText();
+            
+            String sql = "INSERT INTO revisados (id_tarea, comentario, puntaje) VALUES (?, ?, ?)";
+
+            PreparedStatement ps = con.prepareStatement(sql);
+
+            ps.setInt(1, filaSeleccionada);
+            ps.setString(2, comentario);
+            ps.setInt(3, nota);
+
+            ps.executeUpdate();
+
+            JOptionPane.showMessageDialog(null, "Calificación guardada");
+
+            con.close();
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "Error: " + e);
+        }
+        
+        
+        
+        
+    }                                              
 
     /**
      * @param args the command line arguments
@@ -1221,15 +799,12 @@ private boolean validarFormulario() {
 
     // Variables declaration - do not modify                     
     private javax.swing.JComboBox<String> jComboBox1;
-    private javax.swing.JComboBox<String> jComboBox2;
     private com.toedter.calendar.JDateChooser jDateChooser1;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel10;
-    private javax.swing.JLabel jLabel11;
-    private javax.swing.JLabel jLabel12;
-    private javax.swing.JLabel jLabel13;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
+    private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;
     private javax.swing.JLabel jLabel6;
     private javax.swing.JLabel jLabel7;
@@ -1241,8 +816,6 @@ private boolean validarFormulario() {
     private javax.swing.JPanel jPanel4;
     private javax.swing.JPanel jPanel5;
     private javax.swing.JPanel jPanel6;
-    private javax.swing.JPanel jPanel7;
-    private javax.swing.JPanel jPanel8;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane3;
@@ -1256,7 +829,6 @@ private boolean validarFormulario() {
     private javax.swing.JTextField jTextField1;
     private javax.swing.JTextField jTextField2;
     private javax.swing.JToggleButton jToggleButton1;
-    private javax.swing.JToggleButton jToggleButton10;
     private javax.swing.JToggleButton jToggleButton2;
     private javax.swing.JToggleButton jToggleButton3;
     private javax.swing.JToggleButton jToggleButton4;
