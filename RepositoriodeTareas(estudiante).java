@@ -3,18 +3,19 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JFrame.java to edit this template
  */
 package UStorie;
-
+import javax.swing.DefaultListModel;
+import javax.swing.JList;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 /**
  *
  * @author Pcarmagedon
  */
 public class UStorieEst extends javax.swing.JFrame {
-
-    /**
-     * Creates new form UStorieEst
-     */
-   private javax.swing.JTable jTable1;
-
+    // Mapa que guarda todos los detalles en memoria al cargar
+    private java.util.HashMap<Integer, String[]> cacheTareas = new java.util.HashMap<>();
+    private int idTareaSeleccionada = -1;
     /**
      * Creates new form UStorieEst
      */
@@ -22,70 +23,66 @@ public class UStorieEst extends javax.swing.JFrame {
         initComponents();
         jPanel2.setVisible(false);
         jPanel3.setVisible(false);
-        jTable1 = new javax.swing.JTable();
-        jScrollPane2.setViewportView(jTable1);
+        jPanel5.setVisible(false);
+        listTareas.setCellRenderer(new TareaRenderer());
+        cargarTareas();
     }
-    // USR3 tasks7-carga datos de BD y aplica colores 
-    private void cargarTabla() {
-        String[] columnas = {"TITULO", "FECHA", "DESCRIPCION", "ARCHIVOS", "ESTADO"};
-        javax.swing.table.DefaultTableModel modelo =
-            new javax.swing.table.DefaultTableModel(columnas, 0);
- 
-        try {
-            java.sql.Connection cn = Conexiobd.Conexion();
-            java.sql.Statement st = cn.createStatement();
-            java.sql.ResultSet rs = st.executeQuery(
-                "SELECT titulo, fecha_entrega, descripcion, archivos FROM Tarea ORDER BY fecha_entrega"
-            );
- 
-            java.util.Date hoy = new java.util.Date();
- 
-            while (rs.next()) {
-                String titulo          = rs.getString("titulo");
-                java.sql.Date fecha    = rs.getDate("fecha_entrega");
-                String descripcion     = rs.getString("descripcion");
-                String archivos        = rs.getString("archivos");
- 
-                //Estado se calcula, NO se guarda en BD
-                String estado = fecha.before(hoy) ? "Vencida" : "Activa";
- 
-                modelo.addRow(new Object[]{titulo, fecha, descripcion, archivos, estado});
-            }
- 
-            jTable1.setModel(modelo);
- 
-            //Colores: Rojo = Vencida, Verde = Activa
-            javax.swing.table.DefaultTableCellRenderer renderer =
-                new javax.swing.table.DefaultTableCellRenderer() {
-                @Override
-                public java.awt.Component getTableCellRendererComponent(
-                        javax.swing.JTable table, Object value,
-                        boolean isSelected, boolean hasFocus, int row, int column) {
- 
-                    java.awt.Component c = super.getTableCellRendererComponent(
-                            table, value, isSelected, hasFocus, row, column);
- 
-                    String estado = (String) table.getValueAt(row, 4); // columna ESTADO
- 
-                    if (estado.equals("Vencida")) {
-                        c.setBackground(new java.awt.Color(255, 150, 150)); //Rojo
-                    } else {
-                        c.setBackground(new java.awt.Color(150, 255, 150)); //Verde
-                    }
-                    return c;
-                }
-            };
- 
-            // Aplicar renderer a todas las columnas
-            for (int i = 0; i < jTable1.getColumnCount(); i++) {
-                jTable1.getColumnModel().getColumn(i).setCellRenderer(renderer);
-            }
- 
-        } catch (Exception e) {
-            javax.swing.JOptionPane.showMessageDialog(this, "Error al cargar tareas: " + e.getMessage());
-        }
-    }
+    
 
+
+public void cargarTareas() {
+    DefaultListModel modelo = new DefaultListModel();
+    listTareas.setModel(modelo);
+
+    try {
+        Connection con = Conexiobd.Conexion();
+
+        // Una sola consulta que trae TODO incluyendo el archivo
+        String sql = "SELECT t.id_tarea, t.Titulo, t.Estado, t.Fecha_entrega, " +
+                     "t.Descripcion, a.ruta_archivo " +
+                     "FROM Tarea t " +
+                     "LEFT JOIN Archivo_tarea a ON t.id_tarea = a.id_tarea " +
+                     "ORDER BY t.id_tarea DESC LIMIT 10";
+
+        PreparedStatement ps = con.prepareStatement(sql);
+        ResultSet rs = ps.executeQuery();
+
+        while (rs.next()) {
+            int id = rs.getInt("id_tarea");
+            String titulo     = rs.getString("Titulo");
+            String estado     = rs.getString("Estado");
+            String fecha      = rs.getString("Fecha_entrega");
+            String descripcion = rs.getString("Descripcion");
+            String archivo    = rs.getString("ruta_archivo") != null 
+                                ? rs.getString("ruta_archivo") 
+                                : "";
+
+            // Guarda en el mapa local
+            cacheTareas.put(id, new String[]{titulo, estado, fecha, descripcion, archivo});
+
+            modelo.addElement(new TareasItem(id, titulo, fecha, estado));
+        }
+
+        con.close();
+
+    } catch (Exception e) {
+        System.out.println("Error: " + e);
+    }
+}
+
+public void cargarDetalleTarea(int idTarea) {
+    // Ya no consulta la BD, lee del mapa en memoria — instantáneo
+    String[] datos = cacheTareas.get(idTarea);
+
+    if (datos != null) {
+        jTextField1.setText(datos[0]); // titulo
+        jTextField3.setText(datos[1]); // estado
+        jTextField2.setText(datos[2]); // fecha
+        jTextArea1.setText(datos[3]);  // descripcion
+        idTareaSeleccionada = idTarea;
+    }
+}
+    
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -116,7 +113,7 @@ public class UStorieEst extends javax.swing.JFrame {
         jPanel6 = new javax.swing.JPanel();
         jToggleButton4 = new javax.swing.JToggleButton();
         jScrollPane2 = new javax.swing.JScrollPane();
-        jList1 = new javax.swing.JList<>();
+        listTareas = new javax.swing.JList<>();
         jPanel7 = new javax.swing.JPanel();
         jLabel6 = new javax.swing.JLabel();
 
@@ -196,6 +193,11 @@ public class UStorieEst extends javax.swing.JFrame {
         jScrollPane1.setViewportView(jTextArea1);
 
         jToggleButton3.setText("VER ARCHIVO");
+        jToggleButton3.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jToggleButton3ActionPerformed(evt);
+            }
+        });
 
         jPanel6.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -211,6 +213,11 @@ public class UStorieEst extends javax.swing.JFrame {
         );
 
         jToggleButton4.setText("CERRAR");
+        jToggleButton4.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jToggleButton4ActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout jPanel5Layout = new javax.swing.GroupLayout(jPanel5);
         jPanel5.setLayout(jPanel5Layout);
@@ -267,17 +274,17 @@ public class UStorieEst extends javax.swing.JFrame {
                 .addComponent(jToggleButton3)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jPanel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 52, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(jToggleButton4)
                 .addGap(14, 14, 14))
         );
 
-        jList1.setModel(new javax.swing.AbstractListModel<String>() {
-            String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
-            public int getSize() { return strings.length; }
-            public String getElementAt(int i) { return strings[i]; }
+        listTareas.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
+            public void valueChanged(javax.swing.event.ListSelectionEvent evt) {
+                listTareasValueChanged(evt);
+            }
         });
-        jScrollPane2.setViewportView(jList1);
+        jScrollPane2.setViewportView(listTareas);
 
         jPanel7.setBackground(new java.awt.Color(0, 153, 0));
 
@@ -289,9 +296,9 @@ public class UStorieEst extends javax.swing.JFrame {
         jPanel7Layout.setHorizontalGroup(
             jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel7Layout.createSequentialGroup()
-                .addGap(35, 35, 35)
+                .addGap(19, 19, 19)
                 .addComponent(jLabel6)
-                .addContainerGap(36, Short.MAX_VALUE))
+                .addContainerGap(67, Short.MAX_VALUE))
         );
         jPanel7Layout.setVerticalGroup(
             jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -307,11 +314,13 @@ public class UStorieEst extends javax.swing.JFrame {
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(jPanel4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                .addGap(27, 27, 27)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                .addGap(19, 19, 19)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane2)
-                    .addComponent(jPanel7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 26, Short.MAX_VALUE)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jPanel7, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(0, 0, Short.MAX_VALUE)))
+                .addGap(18, 18, 18)
                 .addComponent(jPanel5, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
         );
@@ -321,14 +330,12 @@ public class UStorieEst extends javax.swing.JFrame {
                 .addComponent(jPanel4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(jPanel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addContainerGap())
+                    .addComponent(jPanel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(jPanel2Layout.createSequentialGroup()
                         .addComponent(jPanel7, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(3, 3, 3)
-                        .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 277, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                        .addComponent(jScrollPane2)))
+                .addContainerGap())
         );
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
@@ -368,12 +375,57 @@ public class UStorieEst extends javax.swing.JFrame {
     private void jToggleButton1ActionPerformed(java.awt.event.ActionEvent evt) {                                               
        jPanel2.setVisible(true);
         jPanel3.setVisible(false);
-        cargarTabla(); //Carga la tabla con colore al presionar verTarea
     }                                              
 
     private void jToggleButton2ActionPerformed(java.awt.event.ActionEvent evt) {                                               
       jPanel2.setVisible(false);
         jPanel3.setVisible(true);
+    }                                              
+
+    private void listTareasValueChanged(javax.swing.event.ListSelectionEvent evt) {                                        
+           if (!evt.getValueIsAdjusting()) {
+        Object obj = listTareas.getSelectedValue();
+
+        if (obj instanceof TareasItem) {
+            TareasItem item = (TareasItem) obj;
+
+            jPanel5.setVisible(true); // mostrar panel detalles
+
+            cargarDetalleTarea(item.id);
+        }
+    }
+    }                                       
+
+    private void jToggleButton4ActionPerformed(java.awt.event.ActionEvent evt) {                                               
+    jPanel5.setVisible(false);
+  
+    }                                              
+
+    private void jToggleButton3ActionPerformed(java.awt.event.ActionEvent evt) {                                               
+        if (idTareaSeleccionada == -1) {
+        javax.swing.JOptionPane.showMessageDialog(this, "Selecciona una tarea primero.");
+        return;
+        }
+
+        try {
+            Connection con = Conexiobd.Conexion();
+            String sql = "SELECT ruta_archivo FROM Archivo_tarea WHERE id_tarea = ?";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, idTareaSeleccionada);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                String url = rs.getString("ruta_archivo");
+                java.awt.Desktop.getDesktop().browse(new java.net.URI(url));
+            } else {
+                javax.swing.JOptionPane.showMessageDialog(this, "Esta tarea no tiene archivo adjunto.");
+            }
+
+            con.close();
+
+        } catch (Exception e) {
+            javax.swing.JOptionPane.showMessageDialog(this, "No se pudo abrir: " + e.getMessage());
+        }
     }                                              
 
     /**
@@ -418,7 +470,6 @@ public class UStorieEst extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;
     private javax.swing.JLabel jLabel6;
-    private javax.swing.JList<String> jList1;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
@@ -436,5 +487,6 @@ public class UStorieEst extends javax.swing.JFrame {
     private javax.swing.JToggleButton jToggleButton2;
     private javax.swing.JToggleButton jToggleButton3;
     private javax.swing.JToggleButton jToggleButton4;
+    private javax.swing.JList<TareasItem> listTareas;
     // End of variables declaration                   
 }
