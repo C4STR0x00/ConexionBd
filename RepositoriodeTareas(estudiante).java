@@ -190,7 +190,7 @@ public class UStorieEst extends javax.swing.JFrame {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        jLabel10.setFont(new java.awt.Font("Segoe UI", 1, 40)); // NOI18N
+        jLabel10.setFont(new java.awt.Font("Yu Gothic UI Semibold", 1, 40)); // NOI18N
         jLabel10.setForeground(new java.awt.Color(0, 153, 0));
         jLabel10.setText("BIENVENIDO ESTUDIANTE");
 
@@ -519,8 +519,8 @@ public class UStorieEst extends javax.swing.JFrame {
                 .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                 .addGroup(jPanel1Layout.createSequentialGroup()
-                    .addGap(100, 100, 100)
-                    .addComponent(jLabel10, javax.swing.GroupLayout.PREFERRED_SIZE, 506, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGap(107, 107, 107)
+                    .addComponent(jLabel10, javax.swing.GroupLayout.PREFERRED_SIZE, 499, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addContainerGap(107, Short.MAX_VALUE)))
         );
         jPanel1Layout.setVerticalGroup(
@@ -619,82 +619,10 @@ public class UStorieEst extends javax.swing.JFrame {
     }                                           
 
     private void jToggleButton7ActionPerformed(java.awt.event.ActionEvent evt) {                                               
-            //Usr5 task 4: Validar que haya tarea seleccionada 
-    if (idTareaSeleccionada == -1) {
-        javax.swing.JOptionPane.showMessageDialog(this, 
-            "Selecciona una tarea primero.");
-        return;
-    }
-
-    // Validar que haya URL 
-    String url = jTextField4.getText().trim();
-    if (url.isEmpty() || url.equals("Insertar URL")) {
-        javax.swing.JOptionPane.showMessageDialog(this, 
-            "Ingresa un link antes de enviar.");
-        return;
-    }
-
-    try {
-        Connection con = Conexiobd.Conexion();
-
-        // Obtener fecha y hora actual
-        java.time.LocalDateTime ahora = java.time.LocalDateTime.now();
-        java.sql.Date fechaEntrega    = java.sql.Date.valueOf(ahora.toLocalDate());
-        java.sql.Time horaEntrega     = java.sql.Time.valueOf(ahora.toLocalTime());
-
-        //Intentar UPDATE primero 
-        String sqlUpdate = "UPDATE Tarea_Estudiante " +
-                           "SET link_entrega = ?, estado_entrega = 'Entregado', " +
-                           "fecha_entrega = ?, hora_entrega = ? " +
-                           "WHERE id_tarea = ? AND id_estudiante = ?";
-
-        PreparedStatement psUpdate = con.prepareStatement(sqlUpdate);
-        psUpdate.setString(1, url);
-        psUpdate.setDate(2, fechaEntrega);   // Task 5
-        psUpdate.setTime(3, horaEntrega);    // Task 5
-        psUpdate.setInt(4, idTareaSeleccionada);
-        psUpdate.setInt(5, idEstudianteActual);
-        int filas = psUpdate.executeUpdate();
-
-        //Si no existe el registro, hacer INSERT 
-        if (filas == 0) {
-            String sqlInsert = "INSERT INTO Tarea_Estudiante " +
-                               "(id_tarea, id_estudiante, link_entrega, " +
-                               "estado_entrega, fecha_entrega, hora_entrega) " +
-                               "VALUES (?, ?, ?, 'Entregado', ?, ?)";
-
-            PreparedStatement psInsert = con.prepareStatement(sqlInsert);
-            psInsert.setInt(1, idTareaSeleccionada);
-            psInsert.setInt(2, idEstudianteActual);
-            psInsert.setString(3, url);
-            psInsert.setDate(4, fechaEntrega);  
-            psInsert.setTime(5, horaEntrega);   
-            psInsert.executeUpdate();
+            if (idTareaSeleccionada == -1) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Selecciona una tarea primero.");
+            return;
         }
-        con.close();
-
-        // Usr5-task 6: Confirmación con fecha y hora 
-        String fechaHora = ahora.format(
-            java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
-        );
-        javax.swing.JOptionPane.showMessageDialog(this,
-            "¡Tarea entregada correctamente!\n" +
-            "Fecha: " + fechaHora + "\n" +
-            "Link: " + url,
-            "Entrega registrada",
-            javax.swing.JOptionPane.INFORMATION_MESSAGE
-        );
-
-        // Limpiar y cerrar panel
-        jTextField4.setText("Insertar URL");
-        jPanel6.setVisible(false);
-        cargarTareas(); // refrescar la lista
-
-    } catch (Exception e) {
-        javax.swing.JOptionPane.showMessageDialog(this, 
-            "Error al entregar: " + e.getMessage());
-    }
-}
 
         String url = jTextField4.getText().trim();
 
