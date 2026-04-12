@@ -406,33 +406,18 @@ public class UStorieEst extends javax.swing.JFrame {
             cargarDetalleTarea(item.id);
             }    
     }                                       
+      
     public void cargarDetalleTarea(int idTarea) {
-
-            try {
-                Connection con = Conexiobd.Conexion();
-
-                String sql = "SELECT titulo, estado, fecha_entrega, descripcion " +
-                             "FROM Tarea WHERE id_tarea = ?";
-
-                PreparedStatement ps = con.prepareStatement(sql);
-                ps.setInt(1, idTarea);
-
-                ResultSet rs = ps.executeQuery();
-
-                if (rs.next()) {
-
-                    jTextField1.setText(rs.getString("titulo"));
-                    jTextField3.setText(rs.getString("estado"));
-                    jTextField2.setText(rs.getString("fecha_entrega"));
-                    jTextArea1.setText(rs.getString("descripcion"));
-
+      // Ya no consulta a la BD, lee del mapa en memoria - instantaneo    
+      String [] datos = cacheTareas.get(idTarea);      
+            if (datos != null) {
+                    jTextField1.setText(datos[0]);  // titulo
+                    jTextField3.setText(datos[1]);  // estado
+                    jTextField2.setText(datos[2]);  // fecha
+                    jTextArea1.setText(datos[3]);   // descripcion
+                    idTareaSeleccionada = idTarea;
                 }
-
-            } catch (Exception e) {
-                System.out.println("Error: " + e);
-            }
-        }  
-    
+  }
     
     public static void main(String args[]) {
         /* Set the Nimbus look and feel */
