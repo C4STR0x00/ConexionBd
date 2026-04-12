@@ -14,6 +14,16 @@ public class UStorieEst extends javax.swing.JFrame {
         jPanel3.setVisible(false);
         cargarTareas();
     }
+     // Usr 4 tasks3-Calcular minutos restantes
+    //    Recibe la fecha de entrega de la BD
+    //    Devuelve cuántos minutos faltan
+    //    Si es negativo → ya venció
+    // ══════════════════════════════════════════════════════
+    private long calcularMinutosRestantes(java.sql.Timestamp fechaEntrega) {
+        java.util.Date ahora       = new java.util.Date();               // fecha/hora actual
+        long diferenciaMs          = fechaEntrega.getTime() - ahora.getTime(); // diferencia en ms
+        return diferenciaMs / (1000 * 60);                               // convertir a minutos
+    }
 
     
     public void cargarTareas(){
