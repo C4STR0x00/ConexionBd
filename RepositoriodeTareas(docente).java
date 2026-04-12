@@ -15,24 +15,26 @@ import javax.swing.table.DefaultTableCellRenderer;
  *
  * @author Pcarmagedon
  */
-public class USTORIES extends javax.swing.JFrame {
+public class UStorieDoc extends javax.swing.JFrame {
 DefaultListModel modeloArchivos = new DefaultListModel();
 javax.swing.JList<String> listaArchivos = new javax.swing.JList<>(modeloArchivos);
 java.util.ArrayList<String> rutasArchivos = new java.util.ArrayList<>();
 int filaSeleccionada = -1;
+private String linkEntregaSeleccionado = "";
     /**
      * Creates new form USTASK
      */
-    public USTORIES() {
+    public UStorieDoc() {
         initComponents();
+        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         jToggleButton5.setVisible(false);
+        jDateChooser1.setDateFormatString("dd/MM/yyyy HH:mm");
         jPanel2.setVisible(false);
         jPanel4.setVisible(false);
         jPanel5.setVisible(false);
         javax.swing.JList listaArchivos = new javax.swing.JList(modeloArchivos);
         jPanel3.setLayout(new java.awt.BorderLayout());
 jPanel3.add(new javax.swing.JScrollPane(listaArchivos), java.awt.BorderLayout.CENTER);
-
 listaArchivos.addMouseListener(new java.awt.event.MouseAdapter() {
     @Override
     public void mouseClicked(java.awt.event.MouseEvent evt) {
@@ -83,36 +85,44 @@ jTable1.addMouseListener(new java.awt.event.MouseAdapter() {
         modeloTabla.addColumn("ESTADO");  
         jTable1.setModel(modeloTabla);
         jTable1.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
-        @Override
-        public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value,
-                boolean isSelected, boolean hasFocus, int row, int column) {
+    @Override
+    public java.awt.Component getTableCellRendererComponent(
+            javax.swing.JTable table, Object value,
+            boolean isSelected, boolean hasFocus,
+            int row, int column) {
 
-            java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+        java.awt.Component c = super.getTableCellRendererComponent(
+                table, value, isSelected, hasFocus, row, column);
 
-            try {
-                String fechaTexto = table.getValueAt(row, 1).toString(); 
+        try {
+            String fechaTexto = table.getValueAt(row, 1).toString();
 
-                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
-                java.util.Date fechaTarea = sdf.parse(fechaTexto);
+            java.text.SimpleDateFormat sdf =
+                    new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
 
-                java.util.Date hoy = new java.util.Date();
+            java.util.Date fechaTarea = sdf.parse(fechaTexto);
+            java.util.Date hoy = new java.util.Date();
 
-                if (fechaTarea.before(hoy)) {
-                    c.setBackground(new java.awt.Color(255, 102, 102)); 
-                    c.setForeground(java.awt.Color.WHITE);
-                } else {
-                    c.setBackground(java.awt.Color.WHITE);
-                    c.setForeground(java.awt.Color.BLACK);
-                }
-
-            } catch (Exception e) {
+            if (fechaTarea.before(hoy)) {
+                c.setBackground(new java.awt.Color(255, 102, 102));
+                c.setForeground(java.awt.Color.WHITE);
+            } else {
                 c.setBackground(java.awt.Color.WHITE);
                 c.setForeground(java.awt.Color.BLACK);
             }
 
-            return c;  
+        } catch (Exception e) {
+            c.setBackground(java.awt.Color.WHITE);
+            c.setForeground(java.awt.Color.BLACK);
         }
-    });
+        if (isSelected) {
+            c.setBackground(new java.awt.Color(0, 102, 255));
+            c.setForeground(java.awt.Color.WHITE);
+        }
+
+        return c;
+    }
+});
 jTable2.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
     @Override
     public java.awt.Component getTableCellRendererComponent(
@@ -190,27 +200,55 @@ jTable2.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellR
         JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
     }
 }
-    private void cargarComboBoxEstudiantes() {
-    try {
-        java.sql.Connection con = Conexiobd.Conexion();
-        String sql = "SELECT id_estudiante, nombre, apellido FROM Estudiante";
-        java.sql.Statement st = con.createStatement();
-        java.sql.ResultSet rs = st.executeQuery(sql);
+    
+    
 
-        jComboBox2.removeAllItems();
-        jComboBox2.addItem("-- Todos los estudiantes --");
 
-        while (rs.next()) {
-            jComboBox2.addItem(rs.getInt("id_estudiante") + " - " +
-                rs.getString("nombre") + " " + rs.getString("apellido"));
-        }
+    private void accionGuardarCalificacion(java.awt.event.ActionEvent evt) {
+    if (!validarFormulario()) {
+        return;
+    }
+    int fila = jTable2.getSelectedRow();
+    String tituloTarea      = jTable2.getValueAt(fila, 0).toString();
+    String nombreEstudiante = jTable2.getValueAt(fila, 4).toString();
+    double nota      = Double.parseDouble(jTextField2.getText().trim());
+    String comentario = jTextArea3.getText().trim();
 
-        con.close();
-
-    } catch (Exception e) {
-        JOptionPane.showMessageDialog(this, "Error al cargar estudiantes: " + e.getMessage());
+    boolean exito = guardarCalificacion(tituloTarea, nombreEstudiante, nota, comentario);
+    if (exito) {
+        JOptionPane.showMessageDialog(this,
+            "Calificación guardada correctamente.",
+            "Éxito", JOptionPane.INFORMATION_MESSAGE);
+        jTextField2.setText("");
+        jTextArea3.setText("");
+        jTable2.clearSelection();
+        cargarTablaCalificaciones();
+    } else {
+        JOptionPane.showMessageDialog(this,
+            "Error al guardar. Intente nuevamente.",
+            "Error", JOptionPane.ERROR_MESSAGE);
     }
 }
+
+private void accionEditarCalificacion(java.awt.event.ActionEvent evt) {
+        int fila = jTable2.getSelectedRow();
+        if (fila == -1) {
+            JOptionPane.showMessageDialog(this,
+                    "Selecciona una fila de la tabla para editar.",
+                    "Sin selección", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        String notaActual = jTable2.getValueAt(fila, 5).toString();
+        String comentarioActual = jTable2.getValueAt(fila, 6).toString();
+
+        jTextField2.setText(notaActual.equals("Sin calificar") ? "" : notaActual);
+        jTextArea3.setText(comentarioActual.equals("-") ? "" : comentarioActual);
+
+        JOptionPane.showMessageDialog(this,
+                "Modifica y presiona GUARDAR CALIFICACIÓN.",
+                "Editar calificación", JOptionPane.INFORMATION_MESSAGE);
+    }
+
 private void cargarComboBoxTareas() {
     try {
         java.sql.Connection con = Conexiobd.Conexion();
@@ -232,61 +270,38 @@ private void cargarComboBoxTareas() {
     }
 }
 
-    private void accionGuardarCalificacion(java.awt.event.ActionEvent evt) {
-    if (!validarFormulario()) {
-        return;
-    }
-    int fila = jTable2.getSelectedRow();
-    String tituloTarea      = jTable2.getValueAt(fila, 0).toString();
-    String nombreEstudiante = jTable2.getValueAt(fila, 4).toString();
-    double nota      = Double.parseDouble(jTextField2.getText().trim());
-    String comentario = jTextArea3.getText().trim();
+private void cargarComboBoxEstudiantes() {
+    try {
+        java.sql.Connection con = Conexiobd.Conexion();
+        String sql = "SELECT id_estudiante, nombre, apellido FROM Estudiante";
+        java.sql.Statement st = con.createStatement();
+        java.sql.ResultSet rs = st.executeQuery(sql);
 
-    boolean exito = guardarCalificacion(tituloTarea, nombreEstudiante, nota, comentario);
-    if (exito) {
-        JOptionPane.showMessageDialog(this,
-            "CalificaciÃ³n guardada correctamente.",
-            "Ã‰xito", JOptionPane.INFORMATION_MESSAGE);
-        jTextField2.setText("");
-        jTextArea3.setText("");
-        jTable2.clearSelection();
-        cargarTablaCalificaciones();
-    } else {
-        JOptionPane.showMessageDialog(this,
-            "Error al guardar. Intente nuevamente.",
-            "Error", JOptionPane.ERROR_MESSAGE);
+        jComboBox2.removeAllItems();
+        jComboBox2.addItem("-- Todos los estudiantes --");
+
+        while (rs.next()) {
+            jComboBox2.addItem(rs.getInt("id_estudiante") + " - " +
+                rs.getString("nombre") + " " + rs.getString("apellido"));
+        }
+
+        con.close();
+
+    } catch (Exception e) {
+        JOptionPane.showMessageDialog(this, "Error al cargar estudiantes: " + e.getMessage());
     }
 }
-
-private void accionEditarCalificacion(java.awt.event.ActionEvent evt) {
-        int fila = jTable2.getSelectedRow();
-        if (fila == -1) {
-            JOptionPane.showMessageDialog(this,
-                    "Selecciona una fila de la tabla para editar.",
-                    "Sin selecciÃ³n", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        String notaActual = jTable2.getValueAt(fila, 5).toString();
-        String comentarioActual = jTable2.getValueAt(fila, 6).toString();
-
-        jTextField2.setText(notaActual.equals("Sin calificar") ? "" : notaActual);
-        jTextArea3.setText(comentarioActual.equals("-") ? "" : comentarioActual);
-
-        JOptionPane.showMessageDialog(this,
-                "Modifica y presiona GUARDAR CALIFICACIÃ“N.",
-                "Editar calificaciÃ³n", JOptionPane.INFORMATION_MESSAGE);
-    }
 
 private void cargarTablaCalificaciones() {
         try {
             java.sql.Connection con = Conexiobd.Conexion();
 
             String sql = "SELECT t.Titulo, t.Descripcion, t.Fecha_entrega, t.Estado, "
-                    + "CONCAT(e.nombre, ' ', e.apellido) AS estudiante, "
-                    + "te.nota, te.comentario "
-                    + "FROM Tarea_Estudiante te "
-                    + "JOIN Tarea t ON te.id_tarea = t.id_tarea "
-                    + "JOIN Estudiante e ON te.id_estudiante = e.id_estudiante";
+           + "CONCAT(e.nombre, ' ', e.apellido) AS estudiante, "
+           + "te.nota, te.comentario, te.link_entrega, te.estado_entrega "
+           + "FROM Tarea_Estudiante te "
+           + "JOIN Tarea t ON te.id_tarea = t.id_tarea "
+           + "JOIN Estudiante e ON te.id_estudiante = e.id_estudiante";
 
             java.sql.Statement st = con.createStatement();
             java.sql.ResultSet rs = st.executeQuery(sql);
@@ -302,6 +317,8 @@ private void cargarTablaCalificaciones() {
             while (rs.next()) {
                 String nota = rs.getString("nota") != null ? rs.getString("nota") : "Sin calificar";
                 String comentario = rs.getString("comentario") != null ? rs.getString("comentario") : "-";
+                String linkEntrega = rs.getString("link_entrega") != null ? rs.getString("link_entrega") : "Sin entregar";
+                String estadoEntrega = rs.getString("estado_entrega") != null ? rs.getString("estado_entrega") : "Pendiente";
 
                 modelo.addRow(new Object[]{
                     rs.getString("Titulo"),
@@ -311,7 +328,8 @@ private void cargarTablaCalificaciones() {
                     rs.getString("estudiante"),
                     nota,
                     comentario
-                });
+                    // link y estado NO van en la tabla
+});
             }
 
             jTable2.setModel(modelo);
@@ -326,14 +344,14 @@ private boolean validarFormulario() {
         if (jTable2.getSelectedRow() == -1) {
             JOptionPane.showMessageDialog(this,
                 "Debes seleccionar una entrega de la tabla.",
-                "Sin selecciÃ³n", JOptionPane.WARNING_MESSAGE);
+                "Sin selección", JOptionPane.WARNING_MESSAGE);
             return false;
         }
  
         String nota = jTextField2.getText().trim();
         if (nota.isEmpty()) {
             JOptionPane.showMessageDialog(this,
-                "La nota no puede estar vacÃ­a.",
+                "La nota no puede estar vacía.",
                 "Nota requerida", JOptionPane.WARNING_MESSAGE);
             jTextField2.requestFocus();
             return false;
@@ -344,14 +362,14 @@ private boolean validarFormulario() {
             if (valorNota < 0 || valorNota > 100) {
                 JOptionPane.showMessageDialog(this,
                     "La nota debe estar entre 0 y 100.",
-                    "Nota invÃ¡lida", JOptionPane.WARNING_MESSAGE);
+                    "Nota inválida", JOptionPane.WARNING_MESSAGE);
                 jTextField2.requestFocus();
                 return false;
             }
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(this,
-                "La nota debe ser un nÃºmero vÃ¡lido. Ejemplo: 85 o 9.5",
-                "Formato invÃ¡lido", JOptionPane.WARNING_MESSAGE);
+                "La nota debe ser un número válido. Ejemplo: 85 o 9.5",
+                "Formato inválido", JOptionPane.WARNING_MESSAGE);
             jTextField2.requestFocus();
             return false;
         }
@@ -359,7 +377,7 @@ private boolean validarFormulario() {
         String comentario = jTextArea3.getText().trim();
         if (comentario.isEmpty()) {
             JOptionPane.showMessageDialog(this,
-                "El comentario no puede estar vacÃ­o.",
+                "El comentario no puede estar vacío.",
                 "Comentario requerido", JOptionPane.WARNING_MESSAGE);
             jTextArea3.requestFocus();
             return false;
@@ -376,7 +394,7 @@ private boolean validarFormulario() {
         psTarea.setString(1, tituloTarea);
         java.sql.ResultSet rsTarea = psTarea.executeQuery();
         if (!rsTarea.next()) {
-            JOptionPane.showMessageDialog(this, "No se encontrÃ³ la tarea: " + tituloTarea);
+            JOptionPane.showMessageDialog(this, "No se encontró la tarea: " + tituloTarea);
             con.close();
             return false;
         }
@@ -387,7 +405,7 @@ private boolean validarFormulario() {
         psEst.setString(1, nombreEstudiante);
         java.sql.ResultSet rsEst = psEst.executeQuery();
         if (!rsEst.next()) {
-            JOptionPane.showMessageDialog(this, "No se encontrÃ³ el estudiante: '" + nombreEstudiante + "'");
+            JOptionPane.showMessageDialog(this, "No se encontró el estudiante: '" + nombreEstudiante + "'");
             con.close();
             return false;
         }
@@ -421,6 +439,7 @@ private boolean validarFormulario() {
     private void initComponents() {
 
         jPanel1 = new javax.swing.JPanel();
+        jLabel4 = new javax.swing.JLabel();
         jToggleButton1 = new javax.swing.JToggleButton();
         jToggleButton3 = new javax.swing.JToggleButton();
         jPanel5 = new javax.swing.JPanel();
@@ -444,6 +463,7 @@ private boolean validarFormulario() {
         jComboBox2 = new javax.swing.JComboBox<>();
         jLabel12 = new javax.swing.JLabel();
         jToggleButton10 = new javax.swing.JToggleButton();
+        jToggleButton11 = new javax.swing.JToggleButton();
         jPanel4 = new javax.swing.JPanel();
         jPanel8 = new javax.swing.JPanel();
         jLabel13 = new javax.swing.JLabel();
@@ -472,6 +492,12 @@ private boolean validarFormulario() {
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
+        jLabel4.setBackground(new java.awt.Color(0, 102, 255));
+        jLabel4.setFont(new java.awt.Font("Yu Gothic UI Semibold", 1, 48)); // NOI18N
+        jLabel4.setForeground(new java.awt.Color(0, 102, 204));
+        jLabel4.setText("BIENVENIDO DOCENTE");
+
+        jToggleButton1.setBackground(new java.awt.Color(0, 102, 204));
         jToggleButton1.setText("CREAR TAREA");
         jToggleButton1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -479,6 +505,7 @@ private boolean validarFormulario() {
             }
         });
 
+        jToggleButton3.setBackground(new java.awt.Color(0, 102, 204));
         jToggleButton3.setText("MURO DE TAREAS");
         jToggleButton3.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -489,7 +516,7 @@ private boolean validarFormulario() {
         jPanel6.setBackground(new java.awt.Color(0, 102, 204));
 
         jLabel6.setFont(new java.awt.Font("Yu Gothic UI Semilight", 1, 12)); // NOI18N
-        jLabel6.setText("REVISIÃ“N  Y CALIFICACIÃ“N DE TAREAS");
+        jLabel6.setText("REVISIÓN  Y CALIFICACIÓN DE TAREAS");
 
         javax.swing.GroupLayout jPanel6Layout = new javax.swing.GroupLayout(jPanel6);
         jPanel6.setLayout(jPanel6Layout);
@@ -505,7 +532,7 @@ private boolean validarFormulario() {
             .addGroup(jPanel6Layout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(jLabel6)
-                .addContainerGap(8, Short.MAX_VALUE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
         jLabel7.setText("Seleccionar Tarea");
@@ -554,7 +581,7 @@ private boolean validarFormulario() {
             }
         });
 
-        jLabel9.setText("CalificaciÃ³n");
+        jLabel9.setText("Calificación");
 
         jLabel10.setText("Comentario");
 
@@ -562,7 +589,7 @@ private boolean validarFormulario() {
         jTextArea3.setRows(5);
         jScrollPane5.setViewportView(jTextArea3);
 
-        jToggleButton9.setText("GUARDAR CALIFICACIÃ“N");
+        jToggleButton9.setText("GUARDAR CALIFICACIÓN");
         jToggleButton9.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jToggleButton9ActionPerformed(evt);
@@ -580,10 +607,17 @@ private boolean validarFormulario() {
 
         jLabel12.setText("Seleccionar Estudiante");
 
-        jToggleButton10.setText("EDITAR CALIFICACIÃ“N");
+        jToggleButton10.setText("EDITAR CALIFICACIÓN");
         jToggleButton10.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jToggleButton10ActionPerformed(evt);
+            }
+        });
+
+        jToggleButton11.setText("VER ENTREGA");
+        jToggleButton11.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jToggleButton11ActionPerformed(evt);
             }
         });
 
@@ -599,40 +633,44 @@ private boolean validarFormulario() {
                         .addComponent(jToggleButton9))
                     .addGroup(jPanel5Layout.createSequentialGroup()
                         .addGap(18, 18, 18)
-                        .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                        .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                .addGroup(jPanel5Layout.createSequentialGroup()
+                                    .addComponent(jToggleButton8)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                    .addComponent(jToggleButton10))
+                                .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 654, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGroup(jPanel5Layout.createSequentialGroup()
+                                    .addComponent(jLabel7)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                    .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 139, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                    .addComponent(jLabel12)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                    .addComponent(jComboBox2, javax.swing.GroupLayout.PREFERRED_SIZE, 135, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGroup(jPanel5Layout.createSequentialGroup()
+                                    .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                        .addComponent(jLabel8)
+                                        .addGroup(jPanel5Layout.createSequentialGroup()
+                                            .addComponent(jLabel9)
+                                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                            .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 86, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                    .addGap(44, 44, 44)
+                                    .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                        .addComponent(jLabel10)
+                                        .addComponent(jScrollPane5)))
+                                .addComponent(jLabel11))
                             .addGroup(jPanel5Layout.createSequentialGroup()
-                                .addComponent(jToggleButton8)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(jToggleButton10))
-                            .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 654, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(jPanel5Layout.createSequentialGroup()
-                                .addComponent(jLabel7)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 139, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(jLabel12)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jComboBox2, javax.swing.GroupLayout.PREFERRED_SIZE, 135, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(jPanel5Layout.createSequentialGroup()
-                                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(jLabel8)
-                                    .addGroup(jPanel5Layout.createSequentialGroup()
-                                        .addComponent(jLabel9)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                        .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 86, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                                .addGap(44, 44, 44)
-                                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(jLabel10)
-                                    .addComponent(jScrollPane5)))
-                            .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 537, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(jLabel11))))
-                .addContainerGap(41, Short.MAX_VALUE))
+                                .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 537, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(18, 18, 18)
+                                .addComponent(jToggleButton11)))))
+                .addContainerGap(36, Short.MAX_VALUE))
         );
         jPanel5Layout.setVerticalGroup(
             jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel5Layout.createSequentialGroup()
                 .addComponent(jPanel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGap(14, 14, 14)
                 .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel7)
                     .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -647,7 +685,9 @@ private boolean validarFormulario() {
                 .addGap(2, 2, 2)
                 .addComponent(jLabel11)
                 .addGap(6, 6, 6)
-                .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 74, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 74, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jToggleButton11))
                 .addGap(18, 18, 18)
                 .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel8)
@@ -661,7 +701,7 @@ private boolean validarFormulario() {
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel5Layout.createSequentialGroup()
                         .addGap(2, 2, 2)
                         .addComponent(jScrollPane5, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 42, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 15, Short.MAX_VALUE)
                 .addComponent(jToggleButton9)
                 .addGap(28, 28, 28))
         );
@@ -718,17 +758,17 @@ private boolean validarFormulario() {
                 .addContainerGap(107, Short.MAX_VALUE)
                 .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
-                        .addComponent(jToggleButton4)
-                        .addGap(284, 284, 284))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
                         .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 491, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(115, 115, 115))))
+                        .addGap(115, 115, 115))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
+                        .addComponent(jToggleButton4)
+                        .addGap(284, 284, 284))))
         );
         jPanel4Layout.setVerticalGroup(
             jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
                 .addComponent(jPanel8, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 56, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 46, Short.MAX_VALUE)
                 .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 262, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(27, 27, 27)
                 .addComponent(jToggleButton4)
@@ -768,15 +808,17 @@ private boolean validarFormulario() {
         jTextArea1.setRows(5);
         jScrollPane1.setViewportView(jTextArea1);
 
+        jDateChooser1.setDateFormatString("HH:MM d MMM 'de' y");
+
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
         jPanel3Layout.setHorizontalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 199, Short.MAX_VALUE)
+            .addGap(0, 259, Short.MAX_VALUE)
         );
         jPanel3Layout.setVerticalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 68, Short.MAX_VALUE)
+            .addGap(0, 63, Short.MAX_VALUE)
         );
 
         jToggleButton2.setText("SUBIR ARCHIVO");
@@ -806,53 +848,54 @@ private boolean validarFormulario() {
             }
         });
 
-        jLabelURL.setText("LINK DEL ARCHIVO (opcional)");
+        jLabelURL.setText("URL");
 
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel2Layout.createSequentialGroup()
-                        .addGap(87, 87, 87)
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jScrollPane1)
-                            .addComponent(jTextFieldURL)
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addComponent(jLabelURL)
-                                .addGap(0, 0, Short.MAX_VALUE))))
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addGap(127, 127, 127)
-                                .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addGap(160, 160, 160)
-                                .addComponent(jToggleButton2)))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 202, Short.MAX_VALUE)
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jToggleButton5, javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addComponent(jToggleButton6, javax.swing.GroupLayout.Alignment.TRAILING))))
-                .addGap(65, 65, 65))
             .addComponent(jPanel7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(jLabel2))
-                        .addGap(291, 291, 291))
+                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 299, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(196, 196, 196))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                        .addComponent(jLabel2)
+                        .addGap(289, 289, 289))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
                         .addComponent(jLabel3)
-                        .addGap(312, 312, 312))
+                        .addGap(316, 316, 316))))
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel2Layout.createSequentialGroup()
+                        .addGap(167, 167, 167)
+                        .addComponent(jToggleButton2)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jToggleButton5))
+                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel2Layout.createSequentialGroup()
+                        .addGap(87, 87, 87)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 548, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(jPanel2Layout.createSequentialGroup()
+                                .addComponent(jLabelURL)
+                                .addGap(18, 18, 18)
+                                .addComponent(jTextFieldURL))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                                .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(jToggleButton6)))))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                .addGap(0, 0, Short.MAX_VALUE)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                        .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, 186, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(255, 255, 255))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
                         .addComponent(jLabel1)
-                        .addGap(298, 298, 298))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 299, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(196, 196, 196))))
+                        .addGap(300, 300, 300))))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -864,34 +907,31 @@ private boolean validarFormulario() {
                 .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jLabel3)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 69, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jLabelURL)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(jTextFieldURL, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(17, 17, 17)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 63, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jTextFieldURL, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabelURL))
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addGap(12, 12, 12)
-                        .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addComponent(jToggleButton5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addGap(51, 51, 51))
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addComponent(jToggleButton2)
-                                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                        .addGap(24, 24, 24)
+                        .addComponent(jToggleButton6))
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(jToggleButton6)
-                        .addContainerGap())))
+                        .addGap(18, 18, 18)
+                        .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jToggleButton2)
+                    .addComponent(jToggleButton5))
+                .addContainerGap(94, Short.MAX_VALUE))
         );
 
+        jToggleButton7.setBackground(new java.awt.Color(0, 102, 204));
         jToggleButton7.setText("REVISION DE TAREAS");
         jToggleButton7.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -908,14 +948,19 @@ private boolean validarFormulario() {
                 .addComponent(jToggleButton1)
                 .addGap(93, 93, 93)
                 .addComponent(jToggleButton3)
-                .addGap(80, 80, 80)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 102, Short.MAX_VALUE)
                 .addComponent(jToggleButton7)
-                .addContainerGap(78, Short.MAX_VALUE))
+                .addGap(56, 56, 56))
             .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                 .addComponent(jPanel4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                 .addComponent(jPanel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(jPanel1Layout.createSequentialGroup()
+                    .addGap(95, 95, 95)
+                    .addComponent(jLabel4, javax.swing.GroupLayout.PREFERRED_SIZE, 522, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addContainerGap(96, Short.MAX_VALUE)))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -934,8 +979,13 @@ private boolean validarFormulario() {
                     .addContainerGap()))
             .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                 .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                    .addGap(0, 65, Short.MAX_VALUE)
+                    .addGap(0, 82, Short.MAX_VALUE)
                     .addComponent(jPanel5, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(jPanel1Layout.createSequentialGroup()
+                    .addGap(236, 236, 236)
+                    .addComponent(jLabel4)
+                    .addContainerGap(220, Short.MAX_VALUE)))
         );
 
         getContentPane().add(jPanel1, java.awt.BorderLayout.CENTER);
@@ -963,7 +1013,7 @@ private boolean validarFormulario() {
             // Mostrar en el campo URL
             jTextFieldURL.setText(linkGenerado);
 
-            // TambiÃ©n agregar al modelo visual como antes
+            // También agregar al modelo visual como antes
             modeloArchivos.clear();
             rutasArchivos.clear();
             modeloArchivos.addElement(nombreArchivo);
@@ -974,29 +1024,65 @@ private boolean validarFormulario() {
     private void jToggleButton3ActionPerformed(java.awt.event.ActionEvent evt) {                                               
         jPanel4.setVisible(true);
         jPanel2.setVisible(false);
-        cargarTabla();
+        jPanel5.setVisible(false);
+
+        // Mostrar mensaje de carga
+        javax.swing.table.DefaultTableModel modeloVacio = 
+            (javax.swing.table.DefaultTableModel) jTable1.getModel();
+        modeloVacio.setRowCount(0);
+
+        new javax.swing.SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                cargarTabla(); // se ejecuta en hilo separado
+                return null;
+            }
+        }.execute();
     }                                              
 
     private void jToggleButton4ActionPerformed(java.awt.event.ActionEvent evt) {                                               
      filaSeleccionada = jTable1.getSelectedRow();
 
-    if(filaSeleccionada == -1){
+    if (filaSeleccionada == -1) {
         JOptionPane.showMessageDialog(this, "Selecciona una tarea");
         return;
     }
-    javax.swing.table.DefaultTableModel modelo = 
+
+    javax.swing.table.DefaultTableModel modelo =
         (javax.swing.table.DefaultTableModel) jTable1.getModel();
 
-    jTextField1.setText(modelo.getValueAt(filaSeleccionada, 0).toString());
+    String tituloTarea = modelo.getValueAt(filaSeleccionada, 0).toString();
+
+    jTextField1.setText(tituloTarea);
     jTextArea1.setText(modelo.getValueAt(filaSeleccionada, 2).toString());
+
+    // ↓↓↓ Cargar URL actual desde la BD ↓↓↓
+    try {
+        java.sql.Connection con = Conexiobd.Conexion();
+        String sqlUrl = "SELECT a.ruta_archivo FROM Archivo_tarea a " +
+                        "JOIN Tarea t ON a.id_tarea = t.id_tarea " +
+                        "WHERE t.Titulo = ?";
+        java.sql.PreparedStatement ps = con.prepareStatement(sqlUrl);
+        ps.setString(1, tituloTarea);
+        java.sql.ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+            jTextFieldURL.setText(rs.getString("ruta_archivo"));
+        } else {
+            jTextFieldURL.setText(""); // sin archivo
+        }
+        con.close();
+    } catch (Exception e) {
+        jTextFieldURL.setText("");
+    }
+    // ↑↑↑ fin carga URL ↑↑↑
 
     jPanel2.setVisible(true);
     jPanel4.setVisible(false);
-
     jToggleButton5.setVisible(true);
 
     JOptionPane.showMessageDialog(this, "Edita y luego presiona ACTUALIZAR");
-    jToggleButton6.setEnabled(false); 
+    jToggleButton6.setEnabled(false);
     }                                              
 
     private void jToggleButton6ActionPerformed(java.awt.event.ActionEvent evt) {                                               
@@ -1009,7 +1095,7 @@ private boolean validarFormulario() {
         return;
     }
 
-    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     String fechaTexto = sdf.format(fecha);
 
     try {
@@ -1052,8 +1138,6 @@ private boolean validarFormulario() {
                 psAsignar.setInt(2, rsEst.getInt("id_estudiante"));
                 psAsignar.executeUpdate();
             }
-        
-            // Guardar URL (manual o generada desde archivo local)
             String urlArchivo = jTextFieldURL.getText().trim();
             if (!urlArchivo.isEmpty()) {
                 String sqlArchivo = "INSERT INTO Archivo_tarea (id_tarea, ruta_archivo) VALUES (?, ?)";
@@ -1062,6 +1146,8 @@ private boolean validarFormulario() {
                 psArchivo.setString(2, urlArchivo);
                 psArchivo.executeUpdate();
             }
+            
+            
         }
         JOptionPane.showMessageDialog(this, "Se agrego la Tarea");
         jTextField1.setText("");
@@ -1082,89 +1168,100 @@ private boolean validarFormulario() {
     }                                              
 
     private void jToggleButton5ActionPerformed(java.awt.event.ActionEvent evt) {                                               
-    String titulo = jTextField1.getText();
-    String descripcion = jTextArea1.getText();
-    java.util.Date fecha = jDateChooser1.getDate();
+        String titulo = jTextField1.getText();
+        String descripcion = jTextArea1.getText();
+        java.util.Date fecha = jDateChooser1.getDate();
 
-    if(titulo.isEmpty() || descripcion.isEmpty() || fecha == null){
-        JOptionPane.showMessageDialog(this, "Completa todos los campos");
-        return;
-    }
+        if (titulo.isEmpty() || descripcion.isEmpty() || fecha == null) {
+            JOptionPane.showMessageDialog(this, "Completa todos los campos");
+            return;
+        }
 
-    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
-    String fechaTexto = sdf.format(fecha);
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String fechaTexto = sdf.format(fecha);
 
-    try {
-        java.sql.Connection con = Conexiobd.Conexion();
+        try {
+            java.sql.Connection con = Conexiobd.Conexion();
 
-        // Actualizar datos de la tarea
-        String sql = "UPDATE Tarea SET Descripcion=?, Fecha_entrega=? WHERE Titulo=?";
-        java.sql.PreparedStatement ps = con.prepareStatement(sql);
-        ps.setString(1, descripcion);
-        ps.setString(2, fechaTexto);
-        ps.setString(3, titulo);
-        ps.executeUpdate();
+            // Actualizar tarea
+            String sql = "UPDATE Tarea SET Descripcion=?, Fecha_entrega=? WHERE Titulo=?";
+            java.sql.PreparedStatement ps = con.prepareStatement(sql);
+            ps.setString(1, descripcion);
+            ps.setString(2, fechaTexto);
+            ps.setString(3, titulo);
+            ps.executeUpdate();
 
-        // â†“â†“â†“ ACTUALIZAR O INSERTAR URL EN Archivo_tarea â†“â†“â†“
-        String urlArchivo = jTextFieldURL.getText().trim();
-        if (!urlArchivo.isEmpty()) {
-            // Primero obtener el id_tarea
-            String sqlId = "SELECT id_tarea FROM Tarea WHERE Titulo = ?";
-            java.sql.PreparedStatement psId = con.prepareStatement(sqlId);
-            psId.setString(1, titulo);
-            java.sql.ResultSet rsId = psId.executeQuery();
+            // Actualizar o insertar URL
+            String urlArchivo = jTextFieldURL.getText().trim();
+            if (!urlArchivo.isEmpty()) {
+                String sqlId = "SELECT id_tarea FROM Tarea WHERE Titulo = ?";
+                java.sql.PreparedStatement psId = con.prepareStatement(sqlId);
+                psId.setString(1, titulo);
+                java.sql.ResultSet rsId = psId.executeQuery();
 
-            if (rsId.next()) {
-                int idTarea = rsId.getInt("id_tarea");
+                if (rsId.next()) {
+                    int idTarea = rsId.getInt("id_tarea");
 
-                // Si ya tiene archivo lo actualiza, si no lo inserta
-                String sqlCheck = "SELECT id_archivo FROM Archivo_tarea WHERE id_tarea = ?";
-                java.sql.PreparedStatement psCheck = con.prepareStatement(sqlCheck);
-                psCheck.setInt(1, idTarea);
-                java.sql.ResultSet rsCheck = psCheck.executeQuery();
+                    String sqlCheck = "SELECT id_archivo FROM Archivo_tarea WHERE id_tarea = ?";
+                    java.sql.PreparedStatement psCheck = con.prepareStatement(sqlCheck);
+                    psCheck.setInt(1, idTarea);
+                    java.sql.ResultSet rsCheck = psCheck.executeQuery();
 
-                if (rsCheck.next()) {
-                    // Ya existe, actualizar
-                    String sqlUpdate = "UPDATE Archivo_tarea SET ruta_archivo = ? WHERE id_tarea = ?";
-                    java.sql.PreparedStatement psUpdate = con.prepareStatement(sqlUpdate);
-                    psUpdate.setString(1, urlArchivo);
-                    psUpdate.setInt(2, idTarea);
-                    psUpdate.executeUpdate();
-                } else {
-                    // No existe, insertar
-                    String sqlInsert = "INSERT INTO Archivo_tarea (id_tarea, ruta_archivo) VALUES (?, ?)";
-                    java.sql.PreparedStatement psInsert = con.prepareStatement(sqlInsert);
-                    psInsert.setInt(1, idTarea);
-                    psInsert.setString(2, urlArchivo);
-                    psInsert.executeUpdate();
+                    if (rsCheck.next()) {
+                        // Ya existe → actualizar
+                        String sqlUpdate = "UPDATE Archivo_tarea SET ruta_archivo = ? WHERE id_tarea = ?";
+                        java.sql.PreparedStatement psUpdate = con.prepareStatement(sqlUpdate);
+                        psUpdate.setString(1, urlArchivo);
+                        psUpdate.setInt(2, idTarea);
+                        psUpdate.executeUpdate();
+                    } else {
+                        // No existe → insertar
+                        String sqlInsert = "INSERT INTO Archivo_tarea (id_tarea, ruta_archivo) VALUES (?, ?)";
+                        java.sql.PreparedStatement psInsert = con.prepareStatement(sqlInsert);
+                        psInsert.setInt(1, idTarea);
+                        psInsert.setString(2, urlArchivo);
+                        psInsert.executeUpdate();
+                    }
                 }
             }
+
+            JOptionPane.showMessageDialog(this, "Tarea actualizada");
+
+            // Limpiar todos los campos
+            jTextField1.setText("");
+            jTextArea1.setText("");
+            jDateChooser1.setDate(null);
+            jTextFieldURL.setText(""); // ← limpia URL
+            modeloArchivos.clear();
+            rutasArchivos.clear();
+            jToggleButton5.setVisible(false);
+            jToggleButton6.setEnabled(true);
+            filaSeleccionada = -1;
+
+            con.close();
+            cargarTabla();
+            jPanel4.setVisible(true);
+            jPanel2.setVisible(false);
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
         }
-        // â†‘â†‘â†‘ FIN URL â†‘â†‘â†‘
-
-        JOptionPane.showMessageDialog(this, "Tarea actualizada");
-        jTextField1.setText("");
-        jTextArea1.setText("");
-        jDateChooser1.setDate(null);
-        modeloArchivos.clear();
-        rutasArchivos.clear();
-        jTextFieldURL.setText(""); // â† limpia el campo URL
-        jToggleButton5.setVisible(false);
-        jToggleButton6.setEnabled(true);
-        con.close();
-
-    } catch(Exception e){
-        JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
-    }
     }                                              
 
     private void jToggleButton7ActionPerformed(java.awt.event.ActionEvent evt) {                                               
-    jPanel5.setVisible(true);
-    jPanel4.setVisible(false);
-    jPanel2.setVisible(false);
-    cargarComboBoxTareas(); 
-    cargarComboBoxEstudiantes(); 
-    cargarTablaCalificaciones();
+        jPanel5.setVisible(true);
+        jPanel4.setVisible(false);
+        jPanel2.setVisible(false);
+
+        new javax.swing.SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                cargarComboBoxTareas();
+                cargarComboBoxEstudiantes();
+                cargarTablaCalificaciones();
+                return null;
+            }
+        }.execute();
     }                                              
 
     private void jToggleButton8ActionPerformed(java.awt.event.ActionEvent evt) {                                               
@@ -1174,7 +1271,7 @@ private boolean validarFormulario() {
         boolean todasTareas = tareaSeleccionada.equals("-- Selecciona una tarea --");
         boolean todosEstudiantes = estudianteSeleccionado.equals("-- Todos los estudiantes --");
 
-        // Si no filtrÃ³ nada, carga todo
+        // Si no filtró nada, carga todo
         if (todasTareas && todosEstudiantes) {
             cargarTablaCalificaciones();
             return;
@@ -1261,31 +1358,87 @@ private boolean validarFormulario() {
 
     private void jTable2MouseClicked(java.awt.event.MouseEvent evt) {                                     
         int fila = jTable2.getSelectedRow();
-        if (fila != -1) {
-            String titulo = jTable2.getValueAt(fila, 0).toString();
-            String descripcion = jTable2.getValueAt(fila, 1).toString();
-            String fecha = jTable2.getValueAt(fila, 2).toString();
-            String estado = jTable2.getValueAt(fila, 3).toString();
-            String estudiante = jTable2.getValueAt(fila, 4).toString();
-            String nota = jTable2.getValueAt(fila, 5).toString();
-            String comentario = jTable2.getValueAt(fila, 6).toString();
+    if (fila != -1) {
+        String titulo     = jTable2.getValueAt(fila, 0).toString();
+        String descripcion= jTable2.getValueAt(fila, 1).toString();
+        String fecha      = jTable2.getValueAt(fila, 2).toString();
+        String estado     = jTable2.getValueAt(fila, 3).toString();
+        String estudiante = jTable2.getValueAt(fila, 4).toString();
+        String nota       = jTable2.getValueAt(fila, 5).toString();
+        String comentario = jTable2.getValueAt(fila, 6).toString();
 
-            jTextArea2.setText(
-                    "Titulo: " + titulo + "\n\n"
-                    + "Descripcion: " + descripcion + "\n\n"
-                    + "Fecha: " + fecha + "\n\n"
-                    + "Estado: " + estado + "\n\n"
-                    + "Estudiante: " + estudiante + "\n\n"
-                    + "Nota: " + nota + "\n\n"
-                    + "Comentario: " + comentario
-            );
-            filaSeleccionada = fila;
+        // Consultar link_entrega y estado_entrega directo de la BD
+        String linkEntrega = "Sin entregar";
+        String estadoEntrega = "Pendiente";
+        try {
+            java.sql.Connection con = Conexiobd.Conexion();
+            String sql = "SELECT te.link_entrega, te.estado_entrega " +
+                         "FROM Tarea_Estudiante te " +
+                         "JOIN Tarea t ON te.id_tarea = t.id_tarea " +
+                         "JOIN Estudiante e ON te.id_estudiante = e.id_estudiante " +
+                         "WHERE t.Titulo = ? AND CONCAT(e.nombre,' ',e.apellido) = ?";
+            java.sql.PreparedStatement ps = con.prepareStatement(sql);
+            ps.setString(1, titulo);
+            ps.setString(2, estudiante);
+            java.sql.ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                linkEntrega   = rs.getString("link_entrega")   != null ? rs.getString("link_entrega")   : "Sin entregar";
+                estadoEntrega = rs.getString("estado_entrega") != null ? rs.getString("estado_entrega") : "Pendiente";
+            }
+            con.close();
+        } catch (Exception e) {
+            System.out.println("Error al cargar entrega: " + e.getMessage());
         }
+
+        jTextArea2.setText(
+            "Titulo: "           + titulo      + "\n\n"
+          + "Descripcion: "      + descripcion + "\n\n"
+          + "Fecha: "            + fecha       + "\n\n"
+          + "Estado: "           + estado      + "\n\n"
+          + "Estudiante: "       + estudiante  + "\n\n"
+          + "Nota: "             + nota        + "\n\n"
+          + "Comentario: "       + comentario  + "\n\n"
+          + "Link entregado: "   + linkEntrega + "\n\n"
+          + "Estado entrega: "   + estadoEntrega
+        );
+        linkEntregaSeleccionado = linkEntrega; // ← agrega esta línea
+        filaSeleccionada = fila;
+    }
     }                                    
 
     private void jTextFieldURLActionPerformed(java.awt.event.ActionEvent evt) {                                              
-        // TODO add your handling code here:
+        
     }                                             
+
+    private void jToggleButton11ActionPerformed(java.awt.event.ActionEvent evt) {                                                
+        if (linkEntregaSeleccionado.isEmpty() || linkEntregaSeleccionado.equals("Sin entregar")) {
+            JOptionPane.showMessageDialog(this, "Este estudiante aún no ha entregado la tarea.");
+            return;
+        }
+        try {
+            java.awt.Desktop.getDesktop().browse(new java.net.URI(linkEntregaSeleccionado));
+
+            // Marcar como visto en la BD
+            int fila = jTable2.getSelectedRow();
+            String titulo     = jTable2.getValueAt(fila, 0).toString();
+            String estudiante = jTable2.getValueAt(fila, 4).toString();
+
+            java.sql.Connection con = Conexiobd.Conexion();
+            String sql = "UPDATE Tarea_Estudiante te " +
+                         "JOIN Tarea t ON te.id_tarea = t.id_tarea " +
+                         "JOIN Estudiante e ON te.id_estudiante = e.id_estudiante " +
+                         "SET te.visto_docente = 1 " +
+                         "WHERE t.Titulo = ? AND CONCAT(e.nombre,' ',e.apellido) = ?";
+            java.sql.PreparedStatement ps = con.prepareStatement(sql);
+            ps.setString(1, titulo);
+            ps.setString(2, estudiante);
+            ps.executeUpdate();
+            con.close();
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "No se pudo abrir: " + e.getMessage());
+        }
+    }                                               
 
     /**
      * @param args the command line arguments
@@ -1304,14 +1457,18 @@ private boolean validarFormulario() {
                 }
             }
         } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(USTORIES.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UStorieDoc.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(USTORIES.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UStorieDoc.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(USTORIES.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UStorieDoc.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(USTORIES.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(UStorieDoc.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
+        //</editor-fold>
+        //</editor-fold>
+        //</editor-fold>
+        //</editor-fold>
         //</editor-fold>
         //</editor-fold>
         //</editor-fold>
@@ -1320,7 +1477,7 @@ private boolean validarFormulario() {
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                new USTORIES().setVisible(true);
+                new UStorieDoc().setVisible(true);
             }
         });
     }
@@ -1336,6 +1493,7 @@ private boolean validarFormulario() {
     private javax.swing.JLabel jLabel13;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
+    private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;
     private javax.swing.JLabel jLabel6;
     private javax.swing.JLabel jLabel7;
@@ -1365,6 +1523,7 @@ private boolean validarFormulario() {
     private javax.swing.JTextField jTextFieldURL;
     private javax.swing.JToggleButton jToggleButton1;
     private javax.swing.JToggleButton jToggleButton10;
+    private javax.swing.JToggleButton jToggleButton11;
     private javax.swing.JToggleButton jToggleButton2;
     private javax.swing.JToggleButton jToggleButton3;
     private javax.swing.JToggleButton jToggleButton4;
