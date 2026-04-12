@@ -1244,7 +1244,92 @@ private boolean validarFormulario() {
     private void jToggleButton10ActionPerformed(java.awt.event.ActionEvent evt) {                                                
         
         accionEditarCalificacion(evt);
-    }                                               
+    }
+    private void jToggleButton11ActionPerformed(java.awt.event.ActionEvent evt) {
+
+    // ── Verificar que haya una fila seleccionada ──
+    int fila = jTable2.getSelectedRow();
+    if (fila == -1) {
+        javax.swing.JOptionPane.showMessageDialog(this, 
+            "Selecciona una entrega primero.");
+        return;
+    }
+
+    // ── Verificar que el estudiante haya entregado ──
+    if (linkEntregaSeleccionado.isEmpty() || 
+        linkEntregaSeleccionado.equals("Sin entregar")) {
+        javax.swing.JOptionPane.showMessageDialog(this, 
+            "Este estudiante aún no ha entregado la tarea.");
+        return;
+    }
+
+    try {
+        // ── PASO 1: Abrir el archivo en el navegador ──
+        java.awt.Desktop.getDesktop().browse(
+            new java.net.URI(linkEntregaSeleccionado)
+        );
+
+        // ── PASO 2: Obtener titulo y estudiante de la fila ──
+        String titulo     = jTable2.getValueAt(fila, 0).toString();
+        String estudiante = jTable2.getValueAt(fila, 4).toString();
+
+        // ── PASO 3: Task 7 — Verificar que no esté ya en "Visto" ──
+        // (no permitir regresar de Visto a No visto)
+        java.sql.Connection conCheck = Conexiobd.Conexion();
+        String sqlCheck = "SELECT te.visto_docente " +
+                          "FROM Tarea_Estudiante te " +
+                          "JOIN Tarea t ON te.id_tarea = t.id_tarea " +
+                          "JOIN Estudiante e ON te.id_estudiante = e.id_estudiante " +
+                          "WHERE t.Titulo = ? " +
+                          "AND CONCAT(e.nombre,' ',e.apellido) = ?";
+        java.sql.PreparedStatement psCheck = conCheck.prepareStatement(sqlCheck);
+        psCheck.setString(1, titulo);
+        psCheck.setString(2, estudiante);
+        java.sql.ResultSet rsCheck = psCheck.executeQuery();
+
+        if (rsCheck.next()) {
+            int yaVisto = rsCheck.getInt("visto_docente");
+            if (yaVisto == 1) {
+                // Ya fue visto, no hacer nada en BD
+                javax.swing.JOptionPane.showMessageDialog(this,
+                    "Este archivo ya fue marcado como Visto anteriormente.");
+                conCheck.close();
+                return;
+            }
+        }
+        conCheck.close();
+
+        // ── PASO 4: Task 5 — Cambiar visto_docente a 1 en BD ──
+        java.sql.Connection con = Conexiobd.Conexion();
+        String sql = "UPDATE Tarea_Estudiante te " +
+                     "JOIN Tarea t ON te.id_tarea = t.id_tarea " +
+                     "JOIN Estudiante e ON te.id_estudiante = e.id_estudiante " +
+                     "SET te.visto_docente = 1 " +   // 0→1 (No visto → Visto)
+                     "WHERE t.Titulo = ? " +
+                     "AND CONCAT(e.nombre,' ',e.apellido) = ?";
+
+        java.sql.PreparedStatement ps = con.prepareStatement(sql);
+        ps.setString(1, titulo);
+        ps.setString(2, estudiante);
+        int filasAfectadas = ps.executeUpdate();
+        con.close();
+
+        // ── PASO 5: Confirmar al docente ──
+        if (filasAfectadas > 0) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                "Archivo abierto y marcado como Visto.",
+                "Estado actualizado",
+                javax.swing.JOptionPane.INFORMATION_MESSAGE
+            );
+            // Recargar tabla para reflejar el cambio
+            cargarTablaEntregas(); // llama al método que recarga jTable2
+        }
+
+    } catch (Exception e) {
+        javax.swing.JOptionPane.showMessageDialog(this, 
+            "No se pudo abrir: " + e.getMessage());
+    }
+}
 
     private void jComboBox1ActionPerformed(java.awt.event.ActionEvent evt) {                                           
         // TODO add your handling code here:
