@@ -671,6 +671,30 @@ public class UStorieEst extends javax.swing.JFrame {
             psInsert.setTime(5, horaEntrega);   
             psInsert.executeUpdate();
         }
+        con.close();
+
+        // Usr5-task 6: Confirmación con fecha y hora 
+        String fechaHora = ahora.format(
+            java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
+        );
+        javax.swing.JOptionPane.showMessageDialog(this,
+            "¡Tarea entregada correctamente!\n" +
+            "Fecha: " + fechaHora + "\n" +
+            "Link: " + url,
+            "Entrega registrada",
+            javax.swing.JOptionPane.INFORMATION_MESSAGE
+        );
+
+        // Limpiar y cerrar panel
+        jTextField4.setText("Insertar URL");
+        jPanel6.setVisible(false);
+        cargarTareas(); // refrescar la lista
+
+    } catch (Exception e) {
+        javax.swing.JOptionPane.showMessageDialog(this, 
+            "Error al entregar: " + e.getMessage());
+    }
+}
 
         String url = jTextField4.getText().trim();
 
