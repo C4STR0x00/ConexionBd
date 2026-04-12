@@ -7,100 +7,59 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 public class UStorieEst extends javax.swing.JFrame {
-
+    // Mapa que guarda todos los detalles en memoria al cargar
+    private java.util.HashMap<Integer, String[]> cacheTareas = new java.util.HashMap<>();
+    private int idTareaSeleccionada = -1;
+    /**
+     * Creates new form UStorieEst
+     */
     public UStorieEst() {
         initComponents();
         jPanel2.setVisible(false);
         jPanel3.setVisible(false);
+        jPanel5.setVisible(false);
+        listTareas.setCellRenderer(new TareaRenderer());
         cargarTareas();
     }
-     // Usr 4 tasks3-Calcular minutos restantes
-    //    Recibe la fecha de entrega de la BD
-    //    Devuelve cuántos minutos faltan
-    //    Si es negativo → ya venció
-    // ══════════════════════════════════════════════════════
-    private long calcularMinutosRestantes(java.sql.Timestamp fechaEntrega) {
-        java.util.Date ahora       = new java.util.Date();               // fecha/hora actual
-        long diferenciaMs          = fechaEntrega.getTime() - ahora.getTime(); // diferencia en ms
-        return diferenciaMs / (1000 * 60);                               // convertir a minutos
-    }
-    public void cargarNotificaciones() {
-limpiar antes de cargar
- DefaultListModel<String> modeloNotif = new DefaultListModel<>();
-        jList1.setModel(modeloNotif);
- // Listas temporales para cada sección
-        java.util.List<String> seccionUrgentes    = new java.util.ArrayList<>();
-        java.util.List<String> seccionVencidas    = new java.util.ArrayList<>();
-        java.util.List<String> seccionCalificadas = new java.util.ArrayList<>();
-        try {
-            Connection con = Conexiobd.Conexion();
-            String sql = "SELECT titulo, fecha_entrega, estado FROM Tarea";
-            PreparedStatement ps = con.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-              String titulo = rs.getString("titulo");
-              String estado = rs.getString("estado");
-                java.sql.Timestamp fecha = rs.getTimestamp("fecha_entrega");
-                //FILTRO 1: Calificadas
-                if (estado != null && estado.equalsIgnoreCase("calificado")) {
-                    seccionCalificadas.add(" \"" + titulo + "\" ya fue calificada");
-                    continue;
-                }
-                // TASK 3: calcular minutos
-                long minutos = calcularMinutosRestantes(fecha);
-                 //FILTRO 2: Vencida                
-if (minutos <= 0) {
-    seccionVencidas.add(" \"" + titulo + "\" venció hace " + Math.abs(minutos) + " minutos");
-    continue;
-}
+    public void cargarTareas() {
+    DefaultListModel modelo = new DefaultListModel();
+    listTareas.setModel(modelo);
 
-    public void cargarTareas(){
-        DefaultListModel modelo = new DefaultListModel();
-        //DefaultListModel<TareasItem> modelo = new DefaultListModel<>();
-
-        listTareas.setModel(modelo);
-
-        try {
+    try {
         Connection con = Conexiobd.Conexion();
-        
-        String sql = "SELECT id_tarea, Titulo FROM Tarea ORDER BY id_tarea DESC LIMIT 10";
-         PreparedStatement ps = con.prepareStatement(sql);
 
-        ResultSet rs = ps.executeQuery();
+        // Una sola consulta que trae TODO incluyendo el archivo
+        String sql = "SELECT t.id_tarea, t.Titulo, t.Estado, t.Fecha_entrega, " +
+                     "t.Descripcion, a.ruta_archivo " +
+                     "FROM Tarea t " +
+                     "LEFT JOIN Archivo_tarea a ON t.id_tarea = a.id_tarea " +
+                     "ORDER BY t.id_tarea DESC LIMIT 10";
 
-        while (rs.next()) {
-                modelo.addElement(new TareasItem(
-                                    rs.getInt("id_tarea"),
-                                    rs.getString("titulo")
-                                    ));
-            }
-
-        } catch (Exception e) {
-            System.out.println("Error de conexion de base de datos: " + e);
-        }
-        /*
-        como no tenemos tabla de estudiante por eso haremos la consulta mas sencillo 
-        String sql = "SELECT T.titulo " +
-                 "FROM Tarea T " +
-                 "INNER JOIN Tarea_estudiante te ON T.id_tarea = te.id_tarea " +
-                 "WHERE te.id_estudiante = ? " +
-                 "ORDER BY te.id DESC LIMIT 5";
-        
-        
-        String sql = "SELECT titulo FROM Tarea ORDER BY id_tarea DESC LIMIT 5";
         PreparedStatement ps = con.prepareStatement(sql);
-        ps.setInt(1, idEstudiante); // ← aquí pones el ID 
-
         ResultSet rs = ps.executeQuery();
 
         while (rs.next()) {
-            modelo.addElement(rs.getString("titulo"));
+            int id = rs.getInt("id_tarea");
+            String titulo     = rs.getString("Titulo");
+            String estado     = rs.getString("Estado");
+            String fecha      = rs.getString("Fecha_entrega");
+            String descripcion = rs.getString("Descripcion");
+            String archivo    = rs.getString("ruta_archivo") != null 
+                                ? rs.getString("ruta_archivo") 
+                                : "";
+
+            // Guarda en el mapa local
+            cacheTareas.put(id, new String[]{titulo, estado, fecha, descripcion, archivo});
+
+            modelo.addElement(new TareasItem(id, titulo, fecha, estado));
         }
 
-       } catch (Exception e) {
-            System.out.println("Error: " + e);
-       }      */  
+        con.close();
+
+    } catch (Exception e) {
+        System.out.println("Error: " + e);
     }
+}
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">                          
     private void initComponents() {
