@@ -159,20 +159,29 @@ jTable2.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellR
             (javax.swing.table.DefaultTableModel) jTable1.getModel();
         modelo.setRowCount(0);
 
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         java.util.Date hoy = new java.util.Date();
 
         while (rs.next()) {
-            String titulo      = rs.getString("Titulo");
-            String fechaTexto  = rs.getString("Fecha_entrega");
-            String descripcion = rs.getString("Descripcion");
-            // Si no tiene archivos muestra "Sin archivos"
-            String archivos    = rs.getString("archivos") != null ? rs.getString("archivos") : "Sin archivos";
+            String titulo = rs.getString("Titulo");
 
-            java.util.Date fecha = sdf.parse(fechaTexto);
-            String estado = fecha.before(hoy) ? "Vencida" : "Activa";
+    java.sql.Timestamp fechaBD = rs.getTimestamp("Fecha_entrega");
 
-            modelo.addRow(new Object[]{titulo, fechaTexto, descripcion, archivos, estado});
+    java.text.SimpleDateFormat formatoBonito =
+            new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+
+    String fechaTexto = formatoBonito.format(fechaBD);
+
+    String descripcion = rs.getString("Descripcion");
+
+    String archivos = rs.getString("archivos") != null
+            ? rs.getString("archivos")
+            : "Sin archivos";
+
+    java.util.Date fecha = fechaBD;
+    String estado = fecha.before(hoy) ? "Vencida" : "Activa";
+
+    modelo.addRow(new Object[]{titulo, fechaTexto, descripcion, archivos, estado});
         }
 
         con.close();
@@ -210,7 +219,7 @@ private void cargarComboBoxTareas() {
         java.sql.ResultSet rs = st.executeQuery(sql);
 
         jComboBox1.removeAllItems();
-        jComboBox1.addItem("-- Selecciona una tarea --"); // opciÃ³n por defecto
+        jComboBox1.addItem("-- Selecciona una tarea --"); // opción por defecto
 
         while (rs.next()) {
             jComboBox1.addItem(rs.getString("Titulo"));
