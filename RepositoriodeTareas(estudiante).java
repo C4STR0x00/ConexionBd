@@ -24,8 +24,36 @@ public class UStorieEst extends javax.swing.JFrame {
         long diferenciaMs          = fechaEntrega.getTime() - ahora.getTime(); // diferencia en ms
         return diferenciaMs / (1000 * 60);                               // convertir a minutos
     }
+    public void cargarNotificaciones() {
+limpiar antes de cargar
+ DefaultListModel<String> modeloNotif = new DefaultListModel<>();
+        jList1.setModel(modeloNotif);
+ // Listas temporales para cada sección
+        java.util.List<String> seccionUrgentes    = new java.util.ArrayList<>();
+        java.util.List<String> seccionVencidas    = new java.util.ArrayList<>();
+        java.util.List<String> seccionCalificadas = new java.util.ArrayList<>();
+        try {
+            Connection con = Conexiobd.Conexion();
+            String sql = "SELECT titulo, fecha_entrega, estado FROM Tarea";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+              String titulo = rs.getString("titulo");
+              String estado = rs.getString("estado");
+                java.sql.Timestamp fecha = rs.getTimestamp("fecha_entrega");
+                //FILTRO 1: Calificadas
+                if (estado != null && estado.equalsIgnoreCase("calificado")) {
+                    seccionCalificadas.add(" \"" + titulo + "\" ya fue calificada");
+                    continue;
+                }
+                // TASK 3: calcular minutos
+                long minutos = calcularMinutosRestantes(fecha);
+                 //FILTRO 2: Vencida                
+if (minutos <= 0) {
+    seccionVencidas.add(" \"" + titulo + "\" venció hace " + Math.abs(minutos) + " minutos");
+    continue;
+}
 
-    
     public void cargarTareas(){
         DefaultListModel modelo = new DefaultListModel();
         //DefaultListModel<TareasItem> modelo = new DefaultListModel<>();
