@@ -349,11 +349,58 @@ public class UStorieEst extends javax.swing.JFrame {
         
     }                                              
 
-    private void jToggleButton2ActionPerformed(java.awt.event.ActionEvent evt) {                                               
-      jPanel2.setVisible(false);
-        jPanel3.setVisible(true);
-    }                                              
+      private void jToggleButton2ActionPerformed(java.awt.event.ActionEvent evt) {                                               
+    jPanel2.setVisible(false);
+    jPanel3.setVisible(true);
 
+    // Punto 6 NICOLE : limpiar JList antes de cargar
+    javax.swing.DefaultListModel<String> modelo = new javax.swing.DefaultListModel<>();
+    jList1.setModel(modelo);
+
+    try {
+        java.sql.Connection cn = Conexiobd.Conexion();
+        java.sql.Statement st = cn.createStatement();
+
+        // Traer tareas
+        java.sql.ResultSet rs = st.executeQuery(
+            "SELECT titulo, fecha_entrega FROM Tarea"
+        );
+
+        java.util.Date ahora = new java.util.Date();
+
+        while (rs.next()) {
+            String titulo = rs.getString("titulo");
+
+            // Debe ser fecha con hora 
+            java.sql.Timestamp fechaEntrega = rs.getTimestamp("fecha_entrega");
+
+            if (fechaEntrega != null) {
+                long diferencia = fechaEntrega.getTime() - ahora.getTime();
+                long minutos = diferencia / (60 * 1000);
+
+                // Punto 4 y 5: solo mostrar entre 1 y 30 min
+                if (minutos > 0 && minutos <= 30) {
+                    if (minutos <= 5) {
+                        modelo.addElement("URGENTE: La tarea " + titulo + " vence en " + minutos + " minutos");
+                    } else {
+                        modelo.addElement("La tarea " + titulo + " vence en " + minutos + " minutos");
+                    }
+                }
+            }
+        }
+
+        // Si no hay notificaciones válidas
+        if (modelo.isEmpty()) {
+            modelo.addElement("No hay tareas por vencer en menos de 30 minutos");
+        }
+
+        cn.close();
+
+    } catch (Exception e) {
+        javax.swing.JOptionPane.showMessageDialog(this, "Error al cargar notificaciones: " + e.getMessage());
+    }
+
+    }           
     private void listTareasValueChanged(javax.swing.event.ListSelectionEvent evt) {                                        
         Object obj = listTareas.getSelectedValue();
 
